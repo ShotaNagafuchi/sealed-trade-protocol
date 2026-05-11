@@ -3,182 +3,150 @@
 [![CI](https://github.com/ShotaNagafuchi/sealed-trade-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/ShotaNagafuchi/sealed-trade-protocol/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636.svg)](https://soliditylang.org/)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://python.org/)
 
-Bilateral trade infrastructure with AI agent negotiation and hardware-enforced confidentiality.
+**A protocol that prevents the double-use of private information in bilateral trade.**
 
-## Table of Contents
+Bitcoin solved double-spending: you can't spend the same coin twice.
+Sealed Trade solves double-use: your private valuation can't be used against you.
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Repository Structure](#repository-structure)
-- [Requirements](#requirements)
-- [Quick Start](#quick-start)
-- [Key Numbers](#key-numbers)
-- [Documentation](#documentation)
-- [Testing](#testing)
-- [Security](#security)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+## The Problem
 
-## Overview
+In private markets — IP licensing, M&A, real estate — negotiation itself leaks information. When a buyer expresses interest, the seller learns there is demand. When a seller lists an asset, the buyer learns there is urgency. Intermediaries who promise confidentiality have no technical mechanism to enforce it.
 
-A protocol where two parties can negotiate and settle bilateral deals (IP licensing, M&A, real estate) without revealing private valuations to anyone — not each other, not an intermediary, not the protocol operator.
+This is the **information double-use problem**: the act of negotiating reveals private constraints that the counterparty can exploit. Every offer, counteroffer, and hesitation becomes a signal. The information you share to reach a deal is reused to worsen your terms.
 
-- **AI agents** negotiate on behalf of principals within signed parameter boundaries
-- **TEE enclaves** (Intel TDX / AMD SEV-SNP) guarantee negotiation privacy at the kernel level
-- **Smart contracts** handle bond escrow, fee collection, and mining rewards
-- **Bitcoin-style mining** rewards early participants with SEAL tokens
+No existing infrastructure solves this. Brokers are trusted third parties with no technical enforcement. Online marketplaces are public by design. Even encrypted channels only protect data in transit — not from the other party at the table.
 
-## Architecture
+## The Solution
+
+Sealed Trade makes bilateral negotiation **information-tight**. AI agents negotiate inside hardware-isolated enclaves (TEE). Neither party — nor any intermediary, nor the protocol itself — can observe the negotiation. Only the outcome crosses the boundary: an agreement, or "no deal."
 
 ```
-Principal A --> [Signed Parameters] --> Agent A <--A2A--> Agent B <-- [Signed Parameters] <-- Principal B
-                                           |        TEE Enclave        |
-                                           +------------+--------------+
-                                                        |
-                                                        v
-                                              Smart Contracts (L2)
-                                           Bond - Fee - Mining - Attestation
+ Seller                                                        Buyer
+   |                                                              |
+   |  [signs parameters: min price, terms]                        |
+   |              |                                               |
+   |              v                                               |
+   |    +-----------------------TEE Enclave-----------------------+
+   |    |  Seller Agent  <-- A2A Protocol -->  Buyer Agent        |
+   |    |  (LLM in TEE)     signed messages    (LLM in TEE)       |
+   |    |                                                         |
+   |    |  * Neither agent can exfiltrate data                    |
+   |    |  * Memory provably wiped after negotiation              |
+   |    |  * Only outcome (agree/no-deal) exits the enclave       |
+   |    +--------------------------+------------------------------+
+   |                               |
+   |                               v
+   |                    Smart Contracts (L2)
+   |                  Bond · Fee · Mining · Attestation
+   |                               |
+   +-------------------------------+------------------------------+
+                           Settlement
 ```
 
-## Repository Structure
+### How It Works
+
+1. **Each party signs parameters** — acceptable price range, required terms, deal-breakers. These are the agent's mandate.
+2. **AI agents negotiate in a TEE enclave** — Intel TDX or AMD SEV-SNP. The agents run LLMs to negotiate freely within their signed parameters. No human or external process can read enclave memory.
+3. **Only the outcome exits** — the final agreement (or "no deal"). All intermediate state — offers, counteroffers, reasoning — is kernel-level deleted with cryptographic attestation.
+4. **Smart contracts settle** — bonds are posted at each stage, the deal value transfers on settlement, and mining rewards are distributed.
+
+### Why TEE
+
+| Approach | Why it doesn't work here |
+|----------|--------------------------|
+| MPC | Requires predefined computation circuits — can't support free-form LLM negotiation |
+| FHE | 10,000-100,000x overhead makes LLM inference infeasible |
+| ZKP | Proves computation correctness but can't seal arbitrary negotiation content |
+| Trusted broker | No technical enforcement — trust is the product, and trust fails |
+
+TEE requires trusting the hardware vendor (Intel, AMD). This is comparable to trusting that ECDSA is hard — an empirically validated assumption with a 10+ year track record. The protocol's insurance pool provides economic recourse if the hardware guarantee fails.
+
+## Economic Design
+
+The protocol uses Bitcoin-style mining to bootstrap a two-sided market.
+
+**The cold-start problem**: buyers won't come without sellers, sellers won't come without buyers. Mining solves this by rewarding the first participants disproportionately — exactly as Bitcoin rewarded early miners with 50 BTC per block before anyone else was paying attention.
+
+### Mining Schedule
+
+| Period | Cumulative Volume | SEAL Allocated | Mining Rate |
+|--------|-------------------|----------------|-------------|
+| 0 | $0 — $10K | 47,500,000 | 4,750 SEAL/$1 |
+| 1 | $10K — $20K | 23,750,000 | 2,375 SEAL/$1 |
+| 2 | $20K — $40K | 11,875,000 | 593.75 SEAL/$1 |
+| 3 | $40K — $80K | 5,937,500 | 148.44 SEAL/$1 |
+| ... | ... | ... | ... |
+| 21 | ~$10.5B — ~$21B | 23 | ~0 SEAL/$1 |
+
+- **100M SEAL total supply** (95M mining + 5M treasury). Fixed at deployment. No inflation.
+- **Halving by volume**, not time. Each period requires 2x the cumulative trade volume.
+- **~$21B cumulative volume** to fully mine all tokens.
+
+### Bonds
+
+Every trade participant posts collateral that escalates with commitment:
+
+| Stage | Bond | Min | Max |
+|-------|------|-----|-----|
+| Discovery | 1% of deal value | $1 | $1,000 |
+| Negotiation | 3% of deal value | $5 | $5,000 |
+| Execution | 10% of deal value | $10 | $50,000 |
+
+Bonds are returned on settlement. On dispute, the faulty party's bond is slashed: 50% to counterparty, 50% to insurance pool.
+
+### Fee
+
+0.3% of deal value on settlement. Compared to 5-15% for traditional brokers.
+
+## Repository
 
 ```
-contracts/          Solidity smart contracts (Foundry)
-  src/
-    SealToken.sol           ERC-20 token (100M fixed supply)
-    SealedTrade.sol         Trade lifecycle orchestrator (EIP-712)
-    BondVault.sol           3-stage bond escrow (ReentrancyGuard)
-    ContributionLedger.sol  Mining rewards with halving
-    Treasury.sol            Fee vault + insurance pool (Ownable2Step)
-  test/                     Foundry tests (49 tests)
-  script/                   Deployment scripts
+contracts/src/
+  SealToken.sol             ERC-20 (100M fixed supply)
+  SealedTrade.sol           Trade lifecycle (EIP-712 signatures)
+  BondVault.sol             3-stage bond escrow
+  ContributionLedger.sol    Mining with halving
+  Treasury.sol              Fee vault + insurance pool
 
-simulation/         Python economic model
+simulation/
   sealed_economics.py       Reference implementation of all formulas
   halving_check.py          Halving schedule verification
   monte_carlo.py            Market scenario simulation
-  test_simulation.py        Unit tests (50 tests)
-
-agent/              Rust agent runtime (planned)
-frontend/           Next.js web UI (planned)
+  test_simulation.py        50 unit tests
 ```
-
-## Requirements
-
-- [Foundry](https://getfoundry.sh/) — Solidity toolchain
-- Python 3.10+ — Economic simulation
-- Git — With submodule support
 
 ## Quick Start
 
-### Smart Contracts (Foundry)
-
 ```bash
-cd contracts
+# Smart contracts
+cd contracts && forge install && forge test -vvv
 
-# Install dependencies
-forge install
-
-# Build
-forge build
-
-# Test
-forge test -vvv
-
-# Gas report
-forge test --gas-report
-```
-
-### Simulation (Python)
-
-```bash
-# Install dependencies
+# Economic simulation
 pip install -r simulation/requirements.txt
-
-# Run unit tests
 python -m pytest simulation/test_simulation.py -v
-
-# Verify halving schedule
-cd simulation && python halving_check.py
-
-# Run Monte Carlo simulation
-python monte_carlo.py --simulations 1000
+python simulation/halving_check.py
 ```
 
-### Deployment
+## Security
 
-```bash
-cd contracts
-cp .env.example .env
-# Edit .env with your values
+**Not audited. Do not deploy with real funds.**
 
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast
-```
-
-## Key Numbers
-
-| Parameter | Value |
-|-----------|-------|
-| Total SEAL supply | 100,000,000 |
-| Treasury allocation | 5,000,000 (5%) |
-| Mining allocation | 95,000,000 (95%) |
-| Genesis trade | ~$70 (min viable) |
-| First halving | $10,000 cumulative volume |
-| Protocol fee | 0.3% |
-| Bond (Execution) | 10% of deal value |
-| Full mining volume | ~$21 billion |
+Security hardening applied: CEI pattern, ReentrancyGuard, EIP-712 with malleability protection, Ownable2Step, deployer-gated initialization, pool-level accounting enforcement. See [SECURITY.md](SECURITY.md).
 
 ## Documentation
 
 - [Economic Model](ECONOMIC_MODEL.md) — Full mathematical specification
 - [Position Paper](POSITION_PAPER.md) — TEE justification and protocol design
-- [Security Policy](SECURITY.md) — Vulnerability reporting
+- [Contributing](CONTRIBUTING.md) — Development setup and guidelines
 
-## Testing
+## Status
 
-The project has **99 automated tests** across two test suites:
-
-| Suite | Tests | Framework | Coverage |
-|-------|-------|-----------|----------|
-| Solidity | 49 | Foundry | Contracts |
-| Python | 50 | pytest | Economic model |
-
-```bash
-# Run everything
-cd contracts && forge test && cd ../simulation && python -m pytest test_simulation.py -v
-```
-
-## Security
-
-**This protocol has not been audited.** Do not deploy with real funds until a professional audit is completed.
-
-Security hardening applied:
-- Checks-Effects-Interactions (CEI) pattern throughout
-- OpenZeppelin ReentrancyGuard on all state-mutating external functions
-- EIP-712 typed signatures with malleability protection
-- Ownable2Step for safe ownership transfer
-- Deployer-gated initialization (front-running protection)
-- Pool-level accounting enforcement on Treasury withdrawals
-
-See [SECURITY.md](SECURITY.md) for vulnerability reporting instructions.
-
-## Roadmap
-
-- [x] Smart contracts (SealToken, SealedTrade, BondVault, ContributionLedger, Treasury)
-- [x] Economic simulation and verification
-- [x] Security hardening (CEI, ReentrancyGuard, EIP-712)
+- [x] Smart contracts + 103 automated tests
+- [x] Economic simulation + Monte Carlo verification
 - [ ] Professional security audit
-- [ ] Agent runtime (Rust + Llama in TEE)
-- [ ] Frontend (Next.js)
+- [ ] Agent runtime (Rust + LLM in TEE)
 - [ ] Testnet deployment (Arbitrum Sepolia)
-- [ ] Mainnet deployment
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ## License
 
