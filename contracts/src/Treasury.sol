@@ -8,10 +8,15 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 /// @title Treasury — Fee vault and insurance pool for Sealed Trade Protocol
 /// @notice Receives 0.3% trade fees and slashed bonds. Owner-gated withdrawals.
 ///         Uses Ownable2Step for safe ownership transfer.
+///         recordFee/recordSlash are access-controlled to authorized callers only.
 contract Treasury is Ownable2Step {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable usdc;
+    address public immutable deployer;
+
+    address public sealedTrade;
+    address public bondVault;
 
     uint256 public insurancePool;
     uint256 public feePool;
@@ -23,19 +28,39 @@ contract Treasury is Ownable2Step {
     event Withdrawn(address indexed token, address indexed to, uint256 amount, string pool);
     event BreachClaimed(address indexed claimant, uint256 amount);
 
+    modifier onlySealedTrade() {
+        require(msg.sender == sealedTrade, "only SealedTrade");
+        _;
+    }
+
+    modifier onlyBondVault() {
+        require(msg.sender == bondVault, "only BondVault");
+        _;
+    }
+
     constructor(address _usdc, address _owner) Ownable(_owner) {
         require(_usdc != address(0), "zero usdc");
         usdc = IERC20(_usdc);
+        deployer = msg.sender;
     }
 
-    /// @notice Record fee deposit. Caller must have already transferred USDC to this contract.
-    function recordFee(uint256 amount) external {
+    /// @notice Set authorized callers. Can only be called once by deployer.
+    function setAuthorized(address _sealedTrade, address _bondVault) external {
+        require(msg.sender == deployer, "not deployer");
+        require(sealedTrade == address(0) && bondVault == address(0), "already set");
+        require(_sealedTrade != address(0) && _bondVault != address(0), "zero address");
+        sealedTrade = _sealedTrade;
+        bondVault = _bondVault;
+    }
+
+    /// @notice Record fee deposit. Only callable by SealedTrade.
+    function recordFee(uint256 amount) external onlySealedTrade {
         feePool += amount;
         emit FeeRecorded(amount);
     }
 
-    /// @notice Record slash deposit. Caller must have already transferred USDC to this contract.
-    function recordSlash(uint256 amount) external {
+    /// @notice Record slash deposit. Only callable by BondVault.
+    function recordSlash(uint256 amount) external onlyBondVault {
         slashPool += amount;
         emit SlashRecorded(amount);
     }

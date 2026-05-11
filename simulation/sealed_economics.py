@@ -65,8 +65,14 @@ def mining_rate(period: int) -> float:
     return period_allocation(period) / period_volume(period)
 
 
-def contribution_score(deal_value: float, periods_elapsed: int, decay: float = 0.5) -> float:
-    """Contribution score with geometric decay across halving boundaries."""
+def contribution_score(deal_value: float, periods_elapsed: int = 0, decay: float = 0.5) -> float:
+    """Contribution score model with optional geometric decay.
+
+    NOTE: The deployed ContributionLedger contract uses flat proportional
+    scoring (no cross-period decay). This function preserves the decay model
+    from the original blueprint for research/comparison purposes only.
+    For production-matching behavior, use periods_elapsed=0.
+    """
     return deal_value * (decay ** periods_elapsed)
 
 

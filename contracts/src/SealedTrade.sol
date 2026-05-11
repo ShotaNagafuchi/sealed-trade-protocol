@@ -149,6 +149,7 @@ contract SealedTrade is ReentrancyGuard {
         Trade storage t = trades[tradeId];
         require(t.state == TradeState.Matched, "not matched");
         require(msg.sender == t.seller || msg.sender == t.buyer, "not party");
+        require(attestationHash != bytes32(0), "empty attestation");
 
         t.state = TradeState.Negotiating;
         t.attestationHash = attestationHash;
@@ -172,6 +173,8 @@ contract SealedTrade is ReentrancyGuard {
         Trade storage t = trades[tradeId];
         require(t.state == TradeState.Negotiating, "not negotiating");
         require(finalDealValue > 0 && finalDealValue <= t.maxDealValue, "invalid deal value");
+        require(termsHash != bytes32(0), "empty terms hash");
+        require(finalAttestationHash != bytes32(0), "empty attestation");
 
         // Verify both signatures using EIP-712
         bytes32 structHash = keccak256(abi.encode(

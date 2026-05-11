@@ -28,6 +28,7 @@ contract BondVaultTest is Test {
 
         sealedTrade = makeAddr("sealedTrade");
         vault.setSealedTrade(sealedTrade);
+        treasury.setAuthorized(sealedTrade, address(vault));
 
         // Fund accounts
         usdc.mint(alice, 1_000_000e6);

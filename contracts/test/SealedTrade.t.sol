@@ -53,6 +53,7 @@ contract SealedTradeTest is Test {
 
         bondVault.setSealedTrade(address(sealedTrade));
         ledger.setSealedTrade(address(sealedTrade));
+        treasury.setAuthorized(address(sealedTrade), address(bondVault));
 
         // Fund participants generously
         usdc.mint(seller, 10_000_000e6);

@@ -71,9 +71,10 @@ contract DeployScript is Script {
         );
         console2.log("SealedTrade:", address(sealedTrade));
 
-        // 8. Wire references (only deployer can call setSealedTrade)
+        // 8. Wire references (only deployer can call these)
         bondVault.setSealedTrade(address(sealedTrade));
         ledger.setSealedTrade(address(sealedTrade));
+        treasury.setAuthorized(address(sealedTrade), address(bondVault));
 
         vm.stopBroadcast();
 

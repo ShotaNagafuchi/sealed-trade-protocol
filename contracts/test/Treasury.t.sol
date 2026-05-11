@@ -16,22 +16,48 @@ contract TreasuryTest is Test {
     MockUSDC usdc;
     address owner = makeAddr("owner");
     address user = makeAddr("user");
+    address mockSealedTrade = makeAddr("sealedTrade");
+    address mockBondVault = makeAddr("bondVault");
 
     function setUp() public {
         usdc = new MockUSDC();
         treasury = new Treasury(address(usdc), owner);
+        treasury.setAuthorized(mockSealedTrade, mockBondVault);
+
         usdc.mint(user, 1_000_000e6);
         vm.prank(user);
         usdc.approve(address(treasury), type(uint256).max);
     }
 
-    function test_recordFee() public {
-        // Simulate SealedTrade sending USDC then calling recordFee
+    function test_recordFee_onlySealedTrade() public {
+        // Transfer USDC to treasury, then record via authorized caller
         vm.prank(user);
         usdc.transfer(address(treasury), 100e6);
 
+        vm.prank(mockSealedTrade);
         treasury.recordFee(100e6);
         assertEq(treasury.feePool(), 100e6);
+    }
+
+    function test_RevertWhen_recordFee_unauthorized() public {
+        vm.prank(user);
+        vm.expectRevert("only SealedTrade");
+        treasury.recordFee(100e6);
+    }
+
+    function test_recordSlash_onlyBondVault() public {
+        vm.prank(user);
+        usdc.transfer(address(treasury), 50e6);
+
+        vm.prank(mockBondVault);
+        treasury.recordSlash(50e6);
+        assertEq(treasury.slashPool(), 50e6);
+    }
+
+    function test_RevertWhen_recordSlash_unauthorized() public {
+        vm.prank(user);
+        vm.expectRevert("only BondVault");
+        treasury.recordSlash(50e6);
     }
 
     function test_seedInsurance() public {
@@ -71,9 +97,9 @@ contract TreasuryTest is Test {
     }
 
     function test_ownerWithdrawFromFeePool() public {
-        // Simulate fee deposit
         vm.prank(user);
         usdc.transfer(address(treasury), 100e6);
+        vm.prank(mockSealedTrade);
         treasury.recordFee(100e6);
 
         address recipient = makeAddr("recipient");
@@ -87,6 +113,7 @@ contract TreasuryTest is Test {
     function test_RevertWhen_withdrawExceedsPool() public {
         vm.prank(user);
         usdc.transfer(address(treasury), 100e6);
+        vm.prank(mockSealedTrade);
         treasury.recordFee(100e6);
 
         vm.prank(owner);
@@ -95,7 +122,6 @@ contract TreasuryTest is Test {
     }
 
     function test_rescueToken_notUSDC() public {
-        // Deploy a different token
         MockUSDC otherToken = new MockUSDC();
         otherToken.mint(address(treasury), 1000e6);
 
@@ -116,13 +142,27 @@ contract TreasuryTest is Test {
 
         vm.prank(owner);
         treasury.transferOwnership(newOwner);
-
-        // Not effective yet — must accept
         assertEq(treasury.owner(), owner);
 
         vm.prank(newOwner);
         treasury.acceptOwnership();
-
         assertEq(treasury.owner(), newOwner);
+    }
+
+    function test_setAuthorized_onlyDeployer() public {
+        MockUSDC usdc2 = new MockUSDC();
+        Treasury treasury2 = new Treasury(address(usdc2), owner);
+
+        // Non-deployer cannot set
+        vm.prank(user);
+        vm.expectRevert("not deployer");
+        treasury2.setAuthorized(mockSealedTrade, mockBondVault);
+
+        // Deployer (this test contract) can set
+        treasury2.setAuthorized(mockSealedTrade, mockBondVault);
+
+        // Cannot set twice
+        vm.expectRevert("already set");
+        treasury2.setAuthorized(mockSealedTrade, mockBondVault);
     }
 }
