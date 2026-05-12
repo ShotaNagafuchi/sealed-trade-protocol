@@ -2,7 +2,7 @@
 Sealed Trade Protocol — Economic Model Reference Implementation
 
 Bond calculation, fee structure, and trade cost analysis.
-No token mining — the protocol charges fees for utility, not token rewards.
+The protocol charges fees for utility. No token rewards.
 """
 
 from dataclasses import dataclass
