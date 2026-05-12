@@ -6,7 +6,7 @@ sealed-trade@proton.me
 
 ## Abstract
 
-We propose a protocol for bilateral trade that reduces the leakage of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. A buyer's willingness to pay, once signaled through an offer, can never be unsignaled. A seller's urgency, once revealed through a concession, permanently weakens their position. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal, and all negotiation state is destroyed upon completion. Only the final outcome — agreement or no deal — crosses the enclave boundary. Settlement occurs on-chain via bonded smart contracts using stablecoin as the payment rail.
+We propose a protocol for bilateral trade that reduces the leakage of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. A buyer's willingness to pay, once signaled through an offer, can never be unsignaled. A seller's urgency, once revealed through a concession, permanently weakens their position. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal. Upon completion, the enclave is terminated and negotiation state is cleared. Only the final outcome — agreement or no deal — crosses the enclave boundary. Settlement occurs on-chain via bonded smart contracts using stablecoin as the payment rail.
 
 ## 1. Introduction
 
@@ -27,6 +27,8 @@ Hardware enclaves for confidential computation have been explored in blockchain 
 Multi-party computation (MPC) [2] enables joint computation over private inputs without revealing them. However, MPC requires the computation to be expressed as a circuit, which precludes the open-ended natural-language negotiation central to bilateral trade.
 
 Yao's garbled circuits [3] and subsequent work on privacy-preserving negotiation [4] address two-party computation with private inputs, but are limited to predefined protocols rather than free-form agent interaction.
+
+Fully homomorphic encryption [7] would in principle allow computation over encrypted negotiation state, but current implementations impose overhead several orders of magnitude beyond what is feasible for LLM inference.
 
 Dark pools [5][6] solve information leakage for fungible token swaps. Bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.
 
@@ -89,7 +91,7 @@ Smart contracts provide atomic settlement (deal value and bond release in one tr
 
 ### 3.5 Agent Design
 
-Each agent is a language model running inside the enclave, bound by the principal's signed parameters as an irrevocable mandate. This constrains the agent's action space but does not eliminate non-determinism — negotiation quality depends on the underlying model's capabilities.
+Each agent is a language model running inside the enclave, bound by the principal's signed parameters as an irrevocable mandate. Agents exchange structured messages in alternating turns until agreement is reached, a parameter boundary is hit, or a round limit is exceeded. This constrains the agent's action space but does not eliminate non-determinism — negotiation quality depends on the underlying model's capabilities. The agent runtime is not yet implemented; the current release covers the settlement layer only.
 
 ## 4. Economic Model
 
@@ -127,7 +129,7 @@ The protocol's confidentiality depends on hardware enclave integrity. Breach pro
 
 **Bond griefing.** Cost: attacker's own bond (3%+ of deal value). Benefit: counterparty's wasted time. Minimum bond ensures non-trivial cost.
 
-**Sybil trading.** Without token mining, there is no reward for self-trading beyond the utility of the protocol itself. The 0.3% fee is a pure cost with no offsetting incentive.
+**Sybil trading.** The protocol offers no reward for self-trading. The 0.3% fee is a pure cost with no offsetting incentive.
 
 ### 5.3 Settlement Integrity
 
@@ -153,9 +155,9 @@ The settlement layer enforces a strict state machine. Each transition requires b
 
 ## 7. Conclusion
 
-We have presented a protocol that reduces the leakage of private information during bilateral trade negotiation. The mechanism confines negotiation to hardware-isolated AI agents and destroys all intermediate state, ensuring that negotiation dynamics — offers, counteroffers, timing, concession patterns — are not available to either party after the trade concludes.
+We have presented a protocol that reduces the leakage of private information during bilateral trade negotiation. The mechanism confines negotiation to hardware-isolated AI agents and, conditional on enclave integrity, removes negotiation dynamics — offers, counteroffers, timing, concession patterns — from observability by either party after the trade concludes.
 
-The protocol does not solve the information double-use problem completely. Discovery leakage, outcome inference, and parameter-setting incentives remain. What it eliminates is the richest source of exploitable information: the negotiation process itself.
+The protocol does not solve the information double-use problem completely. Discovery leakage, outcome inference, and parameter-setting incentives remain. What it seals is the richest source of exploitable information: the negotiation process itself.
 
 A reference implementation is available as open-source software.
 
