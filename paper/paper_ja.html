@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sealed Trade Protocol</title>
+<style>
+  @page {
+    size: A4;
+    margin: 25mm 20mm 25mm 20mm;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    font-size: 10.5pt;
+    line-height: 1.8;
+    color: #1a1a1a;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  .title-block {
+    text-align: center;
+    margin-bottom: 2em;
+    padding-bottom: 1.5em;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .title-block h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    line-height: 1.4;
+    margin-bottom: 0.8em;
+  }
+
+  .title-block .subtitle {
+    font-size: 12pt;
+    color: #444;
+    margin-bottom: 0.8em;
+  }
+
+  .title-block .author {
+    font-size: 11pt;
+    margin-bottom: 0.3em;
+  }
+
+  .title-block .email {
+    font-size: 9.5pt;
+    color: #555;
+    font-family: 'Courier New', monospace;
+  }
+
+  .abstract {
+    margin-bottom: 2em;
+    padding: 1em 1.5em;
+    background: #fafafa;
+    border-left: 3px solid #333;
+  }
+
+  .abstract h2 {
+    font-size: 10.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5em;
+  }
+
+  .abstract p {
+    font-size: 10pt;
+    text-align: justify;
+  }
+
+  h2 {
+    font-size: 13pt;
+    margin-top: 1.8em;
+    margin-bottom: 0.6em;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.2em;
+  }
+
+  h3 {
+    font-size: 11.5pt;
+    margin-top: 1.2em;
+    margin-bottom: 0.4em;
+  }
+
+  h4 {
+    font-size: 10.5pt;
+    font-weight: bold;
+    margin-top: 1em;
+    margin-bottom: 0.3em;
+  }
+
+  p {
+    margin-bottom: 0.8em;
+    text-align: justify;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 9.5pt;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    text-align: left;
+  }
+
+  th {
+    background: #f5f5f5;
+    font-weight: bold;
+  }
+
+  pre {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    padding: 12px 16px;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    overflow-x: auto;
+    margin: 1em 0;
+    font-family: 'Courier New', monospace;
+  }
+
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    background: #f0f0f0;
+    padding: 1px 4px;
+  }
+
+  .formula {
+    font-family: 'Times New Roman', serif;
+    font-style: italic;
+    text-align: center;
+    margin: 0.8em 0;
+    font-size: 10.5pt;
+  }
+
+  ol, ul {
+    margin: 0.5em 0 0.8em 1.5em;
+  }
+
+  li {
+    margin-bottom: 0.3em;
+  }
+
+  .references {
+    font-size: 9.5pt;
+  }
+
+  .references p {
+    text-indent: -1.5em;
+    padding-left: 1.5em;
+    margin-bottom: 0.4em;
+  }
+
+  h2 { page-break-after: avoid; }
+  table, pre { page-break-inside: avoid; }
+  sup { font-size: 7.5pt; line-height: 0; }
+</style>
+</head>
+<body>
+
+<div class="title-block">
+  <h1>Sealed Trade Protocol:<br>情報封印型交渉による<br>P2P 相対取引基盤</h1>
+  <div class="author">Shota Nagafuchi</div>
+  <div class="email">sealed-trade@proton.me</div>
+</div>
+
+<div class="abstract">
+  <h2>概要</h2>
+  <p>相対取引における私的情報の二重使用を防止するプロトコルを提案する。従来の非公開市場では、交渉行為そのものが私的評価額を漏洩させる。買い手の支払意思額、売り手の売却緊急度 &mdash; これらの情報は取引成立のために一度使用され、さらに条件悪化のためにもう一度使用される。これは Bitcoin の二重支払い問題の情報版である。Sealed Trade は、Trusted Execution Environment（TEE）内で動作する AI エージェント間に交渉を限定することでこの問題を解決する。各エージェントはプリンシパルが暗号署名したパラメータに束縛され、A2A プロトコルで交渉し、完了後にすべての交渉状態を証明可能な形で破壊する。決済はボンド付きスマートコントラクトによりオンチェーンで行われる。取引量ベースの半減期を持つ Bitcoin 型マイニング機構により、中央集権的なマーケットメイキングなしに初期採用を促進する。</p>
+</div>
+
+<h2>1. はじめに</h2>
+
+<p>Bitcoin は電子現金の二重支払い問題を解決した。信頼できる第三者なしに、同一のデジタル通貨を二度支払うことはできない [1]。分散型タイムスタンプサーバーと Proof-of-Work コンセンサスにより、P2P 電子決済から銀行を排除した。</p>
+
+<p>我々は相対取引における類似の問題を特定する：<strong>私的情報の二重使用</strong>。二者間で取引を交渉する際、各当事者の私的情報 &mdash; 留保価格、緊急度、代替選択肢 &mdash; は交渉過程で必然的に伝達される。一度伝達された情報は、公正な取引が生み出す以上の余剰を相手方が搾取するために使用される。</p>
+
+<p>特許ライセンス交渉を考えよう。ライセンシーは支払える最大額を知っている。ライセンサーは受け入れる最小額を知っている。理想的な交渉では、いずれの当事者も相手方の境界を知ることなく、合意可能領域（ZOPA）内の価格で合意する。しかし実際には、あらゆるオファーが情報を漏洩させる。反復的なラウンドを通じて、各当事者の私的評価額は段階的に開示され、搾取される。</p>
+
+<p>この問題は Myerson-Satterthwaite [2] 以降、メカニズムデザインで研究されてきた。彼らは、私的評価額を持つ相対取引においてインセンティブ両立的な仕組みが事後効率性を達成できないことを証明した。</p>
+
+<p>我々はこの不可能性を、新たなメカニズムの設計ではなく、情報アーキテクチャの変更により回避する。交渉がハードウェアで封印された環境内の AI エージェント間で行われ、すべての中間状態が証明可能な形で事後に破壊されれば、情報の二重使用問題は消滅する。</p>
+
+<h3>1.1 貢献</h3>
+
+<ol>
+  <li><strong>情報の二重使用問題</strong>を、発見時の漏洩・交渉時の搾取・決済後の残存という3層の問題として定式化</li>
+  <li>TEE 限定型 AI エージェント交渉と状態破壊の暗号証明により3層すべてに対処するプロトコルの提示</li>
+  <li>Bitcoin 型半減期付き<strong>取引量ベースマイニング機構</strong>の設計</li>
+  <li>スマートコントラクト5本、Python 経済シミュレーション、103件の自動テストを含む動作実装の提供</li>
+</ol>
+
+<h2>2. 情報の二重使用問題</h2>
+
+<h3>2.1 問題の定式化</h3>
+
+<p>相対取引において、私的情報は相反する二つの目的に使用される。(1) <strong>合意の到達</strong>：双方が相互に受容可能な条件を見つけるために選好を伝達しなければならない。(2) <strong>個別余剰の最大化</strong>：各当事者は相手方による価値搾取を防ぐため選好を秘匿したい。(1) に必要な情報が (2) で悪用される情報と同一であることが根本的な緊張を生む。</p>
+
+<h3>2.2 三つの層</h3>
+
+<p><strong>第1層：発見時の漏洩。</strong> 資産への関心表明が需要を暴露する。買い手が特許権者に連絡した時点で、その特許が戦略的価値を持つことが暴露される。</p>
+
+<p><strong>第2層：交渉時の搾取。</strong> 各オファーとカウンターオファーがシグナルとなる。アンカリング効果、応答タイミング、譲歩パターンが私的評価額を漏洩させる。</p>
+
+<p><strong>第3層：決済後の残存。</strong> 取引成立後、仲介者は双方の留保価格と交渉行動の完全な知識を保持する。この情報は将来の取引で活用されうる。</p>
+
+<h3>2.3 既存手法の限界</h3>
+
+<p><strong>信頼できる仲介者</strong>は守秘義務を約束するが技術的な強制手段を持たない。<strong>暗号学的手法</strong>（MPC、FHE、ZKP）は自由形式の自然言語交渉をサポートできない。<strong>ダークプール</strong>（Renegade [5]、Penumbra [6]）は代替可能トークンスワップ向けであり、複雑な非代替性資産の多次元交渉には対応できない。</p>
+
+<h2>3. プロトコル設計</h2>
+
+<h3>3.1 取引ライフサイクル</h3>
+
+<p>取引は6つの状態を遷移する：出品 → マッチ → 交渉中 → 合意 → 決済完了。合意前のいずれの時点でもキャンセル可能。</p>
+
+<p><strong>出品。</strong> 売り手がハッシュ化した資産記述を公開し、発見ボンド（取引額の1%、$1&ndash;$1,000）を供託。<strong>マッチ。</strong> 買い手が関心を表明し同額のボンドを供託。<strong>交渉中。</strong> 双方が交渉ボンド（3%、$5&ndash;$5,000）にエスカレート。AI エージェントが TEE エンクレーブ内で A2A プロトコルにより交渉。<strong>合意。</strong> 実行ボンド（10%、$10&ndash;$50,000）にエスカレート。合意ハッシュと TEE 証明をオンチェーンに記録。<strong>決済完了。</strong> 取引額（USDC）が買い手から売り手に移転、0.3%の手数料を控除。ボンド返還、マイニング報酬分配。</p>
+
+<h3>3.2 TEE 基盤</h3>
+
+<p>エージェントは Intel TDX または AMD SEV-SNP 内で動作する。TEE は (1) ハードウェアレベルのメモリ暗号化、(2) リモート証明、(3) メモリゼロ化の証明を提供する。信頼仮定は ECDSA が離散対数問題の困難性を仮定するのと同等であり、保険プールにより経済的に制限される（違反時の期待損失 &asymp; 10<sup>&minus;7</sup> &times; 取引額）。</p>
+
+<h2>4. 経済モデル</h2>
+
+<h3>4.1 トークン供給</h3>
+
+<table>
+  <tr><th>割当</th><th>数量</th><th>比率</th></tr>
+  <tr><td>マイニング</td><td>95,000,000 SEAL</td><td>95%</td></tr>
+  <tr><td>トレジャリー</td><td>5,000,000 SEAL</td><td>5%</td></tr>
+  <tr><td><strong>合計</strong></td><td><strong>100,000,000 SEAL</strong></td><td><strong>100%</strong></td></tr>
+</table>
+
+<p>全トークンはデプロイ時に発行。インフレーションなし。追加発行機能なし。</p>
+
+<h3>4.2 取引量ベースの半減期</h3>
+
+<p class="formula">V<sub>n</sub> = H &middot; 2<sup>n</sup> &nbsp;&nbsp;(H = $10,000)</p>
+<p class="formula">A<sub>n</sub> = A<sub>0</sub> / 2<sup>n</sup> &nbsp;&nbsp;(A<sub>0</sub> = 47,500,000 SEAL)</p>
+
+<table>
+  <tr><th>期間</th><th>累積閾値</th><th>SEAL 割当</th><th>マイニングレート</th></tr>
+  <tr><td>0</td><td>$10,000</td><td>47,500,000</td><td>4,750 SEAL/$1</td></tr>
+  <tr><td>1</td><td>$20,000</td><td>23,750,000</td><td>2,375 SEAL/$1</td></tr>
+  <tr><td>2</td><td>$40,000</td><td>11,875,000</td><td>593.75 SEAL/$1</td></tr>
+  <tr><td>3</td><td>$80,000</td><td>5,937,500</td><td>148.44 SEAL/$1</td></tr>
+  <tr><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td></tr>
+  <tr><td>21</td><td>~$21B</td><td>~23</td><td>~0 SEAL/$1</td></tr>
+</table>
+
+<p>全供給をマイニングするための累積取引量：約210億ドル。</p>
+
+<h3>4.3 貢献スコアと報酬</h3>
+
+<p>取引額 <em>d</em> で決済完了時、買い手と売り手それぞれに <em>d</em>/2 のスコアを付与。各期間内での報酬は比例配分：</p>
+
+<p class="formula">R<sub>i</sub><sup>(n)</sup> = A<sub>n</sub> &middot; s<sub>i</sub><sup>(n)</sup> / &Sigma;<sub>j</sub> s<sub>j</sub><sup>(n)</sup></p>
+
+<h3>4.4 ボンドと手数料</h3>
+
+<table>
+  <tr><th>段階</th><th>料率</th><th>最小</th><th>最大</th></tr>
+  <tr><td>発見</td><td>1%</td><td>$1</td><td>$1,000</td></tr>
+  <tr><td>交渉</td><td>3%</td><td>$5</td><td>$5,000</td></tr>
+  <tr><td>実行</td><td>10%</td><td>$10</td><td>$50,000</td></tr>
+</table>
+
+<p>紛争時、違反者のボンドをスラッシュ（50%が相手方、50%が保険プール）。プロトコル手数料は決済額の0.3%（従来の仲介者5-15%と比較）。</p>
+
+<h2>5. 反射的成長と起源</h2>
+
+<p>取引量とトークン価値の正のフィードバックループ。業種横断的な信頼蓄積がこのループを強化する。プロトコルは $70 の自己取引1件から起動可能 &mdash; Satoshi が2009年に1台の PC でブロック0をマイニングしたことと意図的に類似させている。</p>
+
+<h2>6. セキュリティモデル</h2>
+
+<p>3つの独立した防御層：<strong>暗号学的</strong>（EIP-712 署名、署名展性拒否）、<strong>経済的</strong>（ボンド + 保険プール）、<strong>運用的</strong>（CEI パターン、ReentrancyGuard、Ownable2Step）。</p>
+
+<p><strong>限界：</strong> TEE ハードウェア信頼への依存。取引額の自己申告（ボンドがインフレ報告のコストを生成）。未監査実装。</p>
+
+<h2>7. 実装</h2>
+
+<table>
+  <tr><th>コントラクト</th><th>目的</th></tr>
+  <tr><td>SealToken</td><td>ERC-20（100M 固定供給）</td></tr>
+  <tr><td>SealedTrade</td><td>取引ライフサイクル（EIP-712 署名）</td></tr>
+  <tr><td>BondVault</td><td>3段階ボンドエスクロー</td></tr>
+  <tr><td>ContributionLedger</td><td>半減期付きマイニング</td></tr>
+  <tr><td>Treasury</td><td>手数料金庫 + 保険プール</td></tr>
+</table>
+
+<p>テストスイート：Solidity 53件 + Python 50件 = 103件。モンテカルロシミュレーションによりジニ係数 &lt; 0.2 を確認。</p>
+
+<h2>8. 結論</h2>
+
+<p>相対取引における情報の二重使用問題は、電子現金における二重支払い問題の類似物である。Bitcoin が二重支払い防止により信頼不要の P2P 決済を可能にしたように、Sealed Trade は私的情報の二重使用能力を排除することで、信頼不要の相対交渉を可能にする。</p>
+
+<p>実装はオープンソースであり、103件の自動テストが正確性を検証している。プロフェッショナル監査完了まで実資金での使用は推奨しない。</p>
+
+<h2>参考文献</h2>
+
+<div class="references">
+  <p>[1] S. Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System," 2008.</p>
+  <p>[2] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," <em>Journal of Economic Theory</em>, vol. 29, pp. 265-281, 1983.</p>
+  <p>[3] McKinsey & Company, "Global Banking Annual Review," 2023.</p>
+  <p>[4] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," <em>STOC</em>, 2009.</p>
+  <p>[5] Renegade, "Renegade: On-Chain Dark Pool," https://renegade.fi, 2023.</p>
+  <p>[6] Penumbra Labs, "Penumbra: A Private DEX and Shielded Pool," https://penumbra.zone, 2023.</p>
+  <p>[7] N. Stephenson, "NDAI: Non-Disclosure AI Agents," 2025.</p>
+  <p>[8] Intel Corporation, "Intel TDX Module Architecture Specification," 2023.</p>
+  <p>[9] A. Yao, "Protocols for Secure Computations," <em>FOCS</em>, 1982.</p>
+  <p>[10] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," <em>IEEE Trans. IFS</em>, 2021.</p>
+</div>
+
+</body>
+</html>
