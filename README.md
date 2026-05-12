@@ -136,8 +136,9 @@ Security hardening applied: CEI pattern, ReentrancyGuard, EIP-712 with malleabil
 
 ## Documentation
 
-- [Economic Model](ECONOMIC_MODEL.md) — Full mathematical specification
-- [Position Paper](POSITION_PAPER.md) — TEE justification and protocol design
+- [Paper](PAPER.md) — Full protocol paper ([日本語版](PAPER_ja.md))
+- [Economic Model](ECONOMIC_MODEL.md) — Mathematical specification
+- [Position Paper](POSITION_PAPER.md) — TEE justification
 - [Contributing](CONTRIBUTING.md) — Development setup and guidelines
 
 ## Status
