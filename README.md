@@ -6,9 +6,6 @@
 
 **A protocol that prevents the double-use of private information in bilateral trade.**
 
-Bitcoin solved double-spending: you can't spend the same coin twice.
-Sealed Trade solves double-use: your private valuation can't be used against you.
-
 ## The Problem
 
 In private markets — IP licensing, M&A, real estate — negotiation itself leaks information. When a buyer expresses interest, the seller learns there is demand. When a seller lists an asset, the buyer learns there is urgency. Intermediaries who promise confidentiality have no technical mechanism to enforce it.

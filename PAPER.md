@@ -6,17 +6,17 @@ sealed-trade@proton.me
 
 ## Abstract
 
-We propose a protocol for bilateral trade that prevents the double-use of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. This is the information analogue of the double-spending problem: the same piece of private information is used once to reach a deal and again to worsen the terms. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal, and provably destroys all negotiation state upon completion. Only the final outcome — agreement or no deal — crosses the enclave boundary. Settlement occurs on-chain via bonded contracts with a volume-based mining mechanism that bootstraps early adoption.
+We propose a protocol for bilateral trade that prevents the double-use of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. A buyer's willingness to pay, once signaled through an offer, can never be unsignaled. A seller's urgency, once revealed through a concession, permanently weakens their position. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal, and provably destroys all negotiation state upon completion. Only the final outcome — agreement or no deal — crosses the enclave boundary. Settlement occurs on-chain via bonded contracts with a volume-based mining mechanism that bootstraps early adoption.
 
 ## 1. Introduction
 
-Bitcoin solved the double-spending problem for digital cash: without a trusted third party, the same digital coin cannot be spent twice [1]. The solution — a distributed timestamp server with proof-of-work consensus — eliminated the need for banks in peer-to-peer electronic payments.
+Private bilateral markets — IP licensing, M&A, real estate — require negotiation to reach agreement. But negotiation itself is a destructive act: every offer, counteroffer, and hesitation reveals private information that the counterparty can exploit. The information required to reach a deal is the same information used to worsen its terms.
 
-We identify an analogous problem in bilateral trade: the **double-use of private information**. When two parties negotiate a deal, each party's private information — their reservation price, urgency, alternatives — is necessarily communicated during the negotiation process. Once communicated, this information can be used by the counterparty to extract surplus beyond what a fair exchange would produce.
+We call this the **double-use of private information**. When two parties negotiate, each party's private information — their reservation price, urgency, alternatives — is necessarily communicated during the process. Once communicated, this information can be used by the counterparty to extract surplus beyond what a fair exchange would produce.
 
 Consider a patent licensing negotiation. The licensee knows the maximum they would pay; the licensor knows the minimum they would accept. In an ideal negotiation, they would agree on a price within this zone of possible agreement (ZOPA) without either party learning the other's boundary. In practice, every offer reveals information. A first offer of $100K signals willingness to pay at least $100K. A counteroffer of $500K signals willingness to accept at most $500K. Through iterated rounds, each party's private valuation is progressively disclosed and exploited.
 
-This problem has been studied in mechanism design since Myerson and Satterthwaite [2], who proved that no incentive-compatible mechanism can achieve ex-post efficiency in bilateral trade with private valuations. Their impossibility result assumes that agents act strategically — which they must, because revealing truthful valuations is dominated by misrepresenting them.
+This problem has been studied in mechanism design since Myerson and Satterthwaite [1], who proved that no incentive-compatible mechanism can achieve ex-post efficiency in bilateral trade with private valuations. Their impossibility result assumes that agents act strategically — which they must, because revealing truthful valuations is dominated by misrepresenting them.
 
 We circumvent this impossibility not by designing a new mechanism, but by changing the information architecture. If negotiation occurs between AI agents in a hardware-sealed environment, and all intermediate state is provably destroyed afterward, the information double-use problem disappears. Each party's private valuation is used exactly once — by their own agent, to negotiate — and is never available to the counterparty.
 
@@ -45,13 +45,13 @@ The problem manifests at three distinct points in the trade lifecycle:
 
 **Trusted intermediaries** promise confidentiality but have no technical enforcement mechanism. Their business model depends on information asymmetry — they profit from knowing what both sides will accept.
 
-**Multi-party computation** [9] can protect specific computations but cannot support the open-ended, natural-language negotiation required in complex bilateral deals. MPC protocols require predefined computation circuits; free-form LLM-based negotiation cannot be expressed as a circuit.
+**Multi-party computation** [2] can protect specific computations but cannot support the open-ended, natural-language negotiation required in complex bilateral deals. MPC protocols require predefined computation circuits; free-form LLM-based negotiation cannot be expressed as a circuit.
 
-**Fully homomorphic encryption** [4] imposes computational overhead several orders of magnitude beyond what is feasible for LLM inference, making it impractical for the scale of computation involved in agent-based negotiation.
+**Fully homomorphic encryption** [3] imposes computational overhead several orders of magnitude beyond what is feasible for LLM inference, making it impractical for the scale of computation involved in agent-based negotiation.
 
 **Zero-knowledge proofs** prove computation correctness but cannot seal arbitrary content. A ZKP can prove that an agent followed its parameters, but it cannot prevent the counterparty from observing the negotiation itself.
 
-**Dark pools** [5][6] solve information leakage for fungible token swaps — matching buyers and sellers without revealing order flow. But bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.
+**Dark pools** [4][5] solve information leakage for fungible token swaps — matching buyers and sellers without revealing order flow. But bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.
 
 ## 3. Protocol Design
 
@@ -236,28 +236,18 @@ No transition can bypass these requirements. The state machine is deterministic 
 
 ## 7. Conclusion
 
-The information double-use problem in bilateral trade is analogous to the double-spending problem in digital cash. Just as Bitcoin made trustless digital payments possible by eliminating the need for a trusted third party to prevent double-spending, Sealed Trade makes trustless bilateral negotiation possible by eliminating the ability to double-use private information.
-
-The protocol achieves this through hardware-confined AI agents that prevent information leakage during negotiation, cryptographic attestation of state destruction that prevents information persistence after negotiation, and bonded settlement that provides economic enforcement and dispute resolution.
+We have presented a protocol that eliminates the double-use of private information in bilateral trade. The mechanism confines negotiation to hardware-isolated AI agents that provably destroy all intermediate state, ensuring that private valuations are used exactly once — by their owner's agent — and are never available to the counterparty, the intermediary, or the protocol itself.
 
 A reference implementation is available as open-source software.
 
 ## References
 
-[1] S. Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System," 2008.
+[1] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," *Journal of Economic Theory*, vol. 29, pp. 265-281, 1983.
 
-[2] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," *Journal of Economic Theory*, vol. 29, pp. 265-281, 1983.
+[2] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," *IEEE Transactions on Information Forensics and Security*, 2021.
 
-[3] A. Yao, "Protocols for Secure Computations," *FOCS*, 1982.
+[3] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," *STOC*, 2009.
 
-[4] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," *STOC*, 2009.
+[4] Renegade, "On-Chain Dark Pool," 2023.
 
-[5] Renegade, "On-Chain Dark Pool," 2023.
-
-[6] Penumbra Labs, "A Private DEX and Shielded Pool," 2023.
-
-[7] N. Stephenson, "NDAI: Non-Disclosure AI Agents," 2025.
-
-[8] Intel Corporation, "Intel Trust Domain Extensions (TDX) Module Architecture Specification," 2023.
-
-[9] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," *IEEE Transactions on Information Forensics and Security*, 2021.
+[5] Penumbra Labs, "A Private DEX and Shielded Pool," 2023.

@@ -201,18 +201,18 @@
 
 <div class="abstract">
   <h2>概要</h2>
-  <p>相対取引における私的情報の二重使用を防止するプロトコルを提案する。従来の非公開市場では、交渉行為そのものが私的評価額を漏洩させ、相手方がその情報を利用して余剰を搾取する。これは二重支払い問題の情報版である。同一の私的情報が、取引の促進と条件の搾取に二重に使用される。Sealed Trade は、ハードウェア隔離されたエンクレーブ内で動作する AI エージェント間に交渉を限定することでこの問題を解決する。各エージェントは暗号署名されたパラメータに束縛され、完了後にすべての交渉状態を証明可能な形で破壊する。エンクレーブの境界を越えるのは最終的な合意または不成立の信号のみである。決済はボンド付き契約によりオンチェーンで行われ、取引量ベースのマイニング機構により初期採用を促進する。</p>
+  <p>相対取引における私的情報の二重使用を防止するプロトコルを提案する。従来の非公開市場では、交渉行為そのものが私的評価額を漏洩させ、相手方がその情報を利用して余剰を搾取する。オファーを通じて一度示された買い手の支払意思は、取り消すことができない。譲歩を通じて一度明らかになった売り手の緊急度は、永続的に交渉力を弱める。Sealed Trade は、ハードウェア隔離されたエンクレーブ内で動作する AI エージェント間に交渉を限定することでこの問題を解決する。各エージェントは暗号署名されたパラメータに束縛され、完了後にすべての交渉状態を証明可能な形で破壊する。エンクレーブの境界を越えるのは最終的な合意または不成立の信号のみである。決済はボンド付き契約によりオンチェーンで行われ、取引量ベースのマイニング機構により初期採用を促進する。</p>
 </div>
 
 <h2>1. はじめに</h2>
 
-<p>Bitcoin は電子現金の二重支払い問題を解決した。信頼できる第三者なしに、同一のデジタル通貨を二度支払うことはできない [1]。</p>
+<p>非公開の相対取引市場 &mdash; IP ライセンス、M&amp;A、不動産 &mdash; では、合意に至るために交渉が不可欠である。しかし交渉行為そのものが破壊的である。あらゆるオファー、カウンターオファー、躊躇が、相手方が悪用しうる私的情報を暴露する。取引を成立させるために必要な情報と、条件を悪化させるために使用される情報は同一である。</p>
 
-<p>我々は相対取引における類似の問題を特定する：<strong>私的情報の二重使用</strong>。二者間で取引を交渉する際、各当事者の私的情報 &mdash; 留保価格、緊急度、代替選択肢 &mdash; は交渉過程で必然的に伝達される。一度伝達された情報は、公正な取引が生み出す以上の余剰を相手方が搾取するために使用される。</p>
+<p>我々はこれを<strong>私的情報の二重使用</strong>と呼ぶ。二者間で取引を交渉する際、各当事者の私的情報 &mdash; 留保価格、緊急度、代替選択肢 &mdash; は交渉過程で必然的に伝達される。一度伝達された情報は、公正な取引が生み出す以上の余剰を相手方が搾取するために使用される。</p>
 
 <p>特許ライセンス交渉を考えよう。ライセンシーは支払える最大額を知っている。ライセンサーは受け入れる最小額を知っている。理想的な交渉では、いずれの当事者も相手方の境界を知ることなく合意可能領域（ZOPA）内の価格で合意する。しかし実際には、あらゆるオファーが情報を漏洩させる。10万ドルの初回提示は少なくともその金額の支払意思を示す。50万ドルの返答は最大でもその金額での受諾意思を示す。反復的なラウンドを通じて、各当事者の私的評価額は段階的に開示され、搾取される。</p>
 
-<p>Myerson-Satterthwaite [2] は、私的評価額を持つ相対取引においてインセンティブ両立的な仕組みが事後効率性を達成できないことを証明した。彼らの不可能性定理は、エージェントが戦略的に行動することを前提とする。</p>
+<p>Myerson-Satterthwaite [1] は、私的評価額を持つ相対取引においてインセンティブ両立的な仕組みが事後効率性を達成できないことを証明した。彼らの不可能性定理は、エージェントが戦略的に行動することを前提とする。</p>
 
 <p>我々はこの不可能性を、新たなメカニズムの設計ではなく、情報アーキテクチャの変更により回避する。交渉がハードウェアで封印された環境内の AI エージェント間で行われ、すべての中間状態が証明可能な形で事後に破壊されれば、情報の二重使用問題は消滅する。</p>
 
@@ -232,7 +232,7 @@
 
 <h3>2.3 既存手法の限界</h3>
 
-<p><strong>信頼できる仲介者</strong>は守秘義務を約束するが技術的な強制手段を持たない。<strong>多者間計算</strong> [3] は事前定義された回路を要求し、自由形式の自然言語交渉を表現できない。<strong>完全準同型暗号</strong> [4] は LLM 推論に必要な計算量に対して数桁の性能不足がある。<strong>ゼロ知識証明</strong>は計算の正しさを証明するが任意のコンテンツを封印できない。<strong>ダークプール</strong> [5][6] は代替可能トークン向けであり、複雑な非代替性資産の多次元交渉には対応できない。</p>
+<p><strong>信頼できる仲介者</strong>は守秘義務を約束するが技術的な強制手段を持たない。<strong>多者間計算</strong> [2] は事前定義された回路を要求し、自由形式の自然言語交渉を表現できない。<strong>完全準同型暗号</strong> [3] は LLM 推論に必要な計算量に対して数桁の性能不足がある。<strong>ゼロ知識証明</strong>は計算の正しさを証明するが任意のコンテンツを封印できない。<strong>ダークプール</strong> [4][5] は代替可能トークン向けであり、複雑な非代替性資産の多次元交渉には対応できない。</p>
 
 <h2>3. プロトコル設計</h2>
 
@@ -372,22 +372,18 @@ signature = sign(hash(Parameters), private_key)
 
 <h2>7. 結論</h2>
 
-<p>相対取引における情報の二重使用問題は、電子現金における二重支払い問題の類似物である。Bitcoin が二重支払い防止により信頼不要の P2P 決済を可能にしたように、Sealed Trade は私的情報の二重使用能力を排除することで、信頼不要の相対交渉を可能にする。</p>
+<p>相対取引における私的情報の二重使用を排除するプロトコルを提示した。ハードウェア隔離された AI エージェント内に交渉を限定し、すべての中間状態を証明可能な形で破壊することで、私的評価額はその所有者のエージェントにより一度だけ使用され、相手方にも仲介者にもプロトコル自体にも開示されない。</p>
 
 <p>リファレンス実装はオープンソースソフトウェアとして公開されている。</p>
 
 <h2 class="references">参考文献</h2>
 
 <div class="references">
-  <p>[1] S. Nakamoto, &ldquo;Bitcoin: A Peer-to-Peer Electronic Cash System,&rdquo; 2008.</p>
-  <p>[2] R. Myerson and M. Satterthwaite, &ldquo;Efficient Mechanisms for Bilateral Trading,&rdquo; <em>Journal of Economic Theory</em>, vol. 29, pp. 265&ndash;281, 1983.</p>
-  <p>[3] A. Yao, &ldquo;Protocols for Secure Computations,&rdquo; <em>FOCS</em>, 1982.</p>
-  <p>[4] C. Gentry, &ldquo;Fully Homomorphic Encryption Using Ideal Lattices,&rdquo; <em>STOC</em>, 2009.</p>
-  <p>[5] Renegade, &ldquo;On-Chain Dark Pool,&rdquo; 2023.</p>
-  <p>[6] Penumbra Labs, &ldquo;A Private DEX and Shielded Pool,&rdquo; 2023.</p>
-  <p>[7] N. Stephenson, &ldquo;NDAI: Non-Disclosure AI Agents,&rdquo; 2025.</p>
-  <p>[8] Intel Corporation, &ldquo;Intel Trust Domain Extensions (TDX) Module Architecture Specification,&rdquo; 2023.</p>
-  <p>[9] R. Moraffah and B. Sankar, &ldquo;Privacy-Preserving Multi-Round Negotiations,&rdquo; <em>IEEE Transactions on Information Forensics and Security</em>, 2021.</p>
+  <p>[1] R. Myerson and M. Satterthwaite, &ldquo;Efficient Mechanisms for Bilateral Trading,&rdquo; <em>Journal of Economic Theory</em>, vol. 29, pp. 265&ndash;281, 1983.</p>
+  <p>[2] R. Moraffah and B. Sankar, &ldquo;Privacy-Preserving Multi-Round Negotiations,&rdquo; <em>IEEE Transactions on Information Forensics and Security</em>, 2021.</p>
+  <p>[3] C. Gentry, &ldquo;Fully Homomorphic Encryption Using Ideal Lattices,&rdquo; <em>STOC</em>, 2009.</p>
+  <p>[4] Renegade, &ldquo;On-Chain Dark Pool,&rdquo; 2023.</p>
+  <p>[5] Penumbra Labs, &ldquo;A Private DEX and Shielded Pool,&rdquo; 2023.</p>
 </div>
 
 </body>
