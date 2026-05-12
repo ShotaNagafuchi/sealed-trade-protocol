@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sealed Trade Protocol</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+  body {
+    font-family: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", "Times New Roman", serif;
+    font-size: 11pt;
+    line-height: 1.8;
+    color: #1a1a1a;
+    background: #fff;
+    padding: 60px 20px;
+  }
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .author {
+    text-align: center;
+    font-size: 11pt;
+    margin-bottom: 4px;
+    font-weight: bold;
+  }
+  .email {
+    text-align: center;
+    font-size: 10pt;
+    color: #444;
+    margin-bottom: 36px;
+    font-family: monospace;
+  }
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+  p {
+    margin-bottom: 12px;
+    text-align: justify;
+  }
+  .abstract p {
+    font-style: italic;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #999;
+    padding: 6px 10px;
+    text-align: left;
+  }
+  th {
+    background: #f0f0f0;
+    font-weight: bold;
+  }
+  .references {
+    font-size: 10pt;
+  }
+  .references p {
+    margin-bottom: 6px;
+    text-indent: -2em;
+    padding-left: 2em;
+    text-align: left;
+  }
+  @media print {
+    body { padding: 0; }
+    .container { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Sealed Trade Protocol: 情報封印型交渉による P2P 相対取引基盤</h1>
+<div class="author">Shota Nagafuchi</div>
+<div class="email">sealed-trade@proton.me</div>
+
+<h2>概要</h2>
+<div class="abstract">
+<p>相対取引における私的情報の漏洩を低減するプロトコルを提案する。従来の非公開市場では、交渉行為そのものが私的評価額を漏洩させ、相手方がその情報を利用して余剰を搾取する。オファーを通じて一度示された買い手の支払意思は、取り消すことができない。譲歩を通じて一度明らかになった売り手の緊急度は、永続的に交渉力を弱める。Sealed Trade は、ハードウェア隔離されたエンクレーブ内で動作する AI エージェント間に交渉を限定することでこの問題に対処する。各エージェントは暗号署名されたパラメータに束縛され、完了後にすべての交渉状態が破壊される。エンクレーブの境界を越えるのは最終的な合意または不成立の信号のみである。決済はスマートコントラクトによるエスクローとボンドでオンチェーンに行われ、ステーブルコインを決済レールとして使用する。</p>
+</div>
+
+<h2>1. はじめに</h2>
+<p>非公開の相対取引市場 &mdash; IP ライセンス、M&amp;A、不動産 &mdash; では、合意に至るために交渉が不可欠である。しかし交渉行為そのものが破壊的である。あらゆるオファー、カウンターオファー、躊躇が、相手方が悪用しうる私的情報を暴露する。取引を成立させるために必要な情報と、条件を悪化させるために使用される情報は同一である。</p>
+
+<p>我々はこれを<strong>私的情報の二重使用</strong>と呼ぶ。</p>
+
+<p>Myerson-Satterthwaite [1] は、私的評価額を持つ相対取引においてインセンティブ両立的な仕組みが事後効率性を達成できないことを証明した。我々はこの不可能性を回避するとは主張しない。パラメータ設定における戦略的緊張は残る。プリンシパルが真の最大額が10万ドルであるにもかかわらず8万ドルの最大価格に署名するのは、交渉者が初回提示を加減するのと同じである。</p>
+
+<p>本プロトコルが達成するのは、交渉過程そのものにおける情報漏洩の低減である。相手方はエージェントがどの程度迅速に譲歩したか、何ラウンドかかったか、どのような中間提示がなされたかを観察できない。経験豊富な交渉者が体系的に搾取するこの中間情報は、封印され破壊される。</p>
+
+<h3>1.1 関連研究</h3>
+<p>ハードウェアエンクレーブによる秘匿計算は Oasis Network や Secret Network で探索されてきたが、自律エージェント間の複数ラウンドにわたる相対交渉は対象としていない。MPC [2]、Yao の Garbled Circuits [3]、プライバシー保護型交渉研究 [4] は自由形式のエージェント対話には対応できない。ダークプール [5][6] は代替可能トークン向けである。</p>
+
+<h3>1.2 主張の範囲と限界</h3>
+<p>本プロトコルは情報二重使用問題の<strong>第2層（交渉時の漏洩）</strong>に対処する。第1層（発見時の漏洩）や結果からの推論（決済価格、不成立結果）は完全には解決しない。これらの残存する漏洩チャネルは第6節で議論する。</p>
+
+<h2>2. 情報の二重使用問題</h2>
+<p><strong>第1層：発見時の漏洩。</strong> 資産への関心表明が需要を暴露する。</p>
+<p><strong>第2層：交渉時の搾取。</strong> 各オファーとカウンターオファーがシグナルとなる。</p>
+<p><strong>第3層：決済後の残存。</strong> 仲介者が双方の留保価格の完全な知識を保持する。</p>
+
+<h2>3. プロトコル設計</h2>
+
+<h3>3.1 取引ライフサイクル</h3>
+<p>出品 &rarr; マッチ &rarr; 交渉中 &rarr; 合意 &rarr; 決済完了。合意前のいずれの時点でもキャンセル可能。各段階でボンドがエスカレートし、合意時にEIP-712署名で確認、決済時に取引額が移転される。</p>
+
+<h3>3.2 なぜ暗号通貨が決済レールか</h3>
+<p>エージェント間決済にはプログラム可能で許可不要な決済レールが必要。従来の決済手段（銀行振込、クレジットカード）は人間の承認を要し、数時間〜数日かかる。L2チェーン上のステーブルコインは秒単位の確定性と完全なプログラム可能性を提供する &mdash; 自律エージェント運用と互換性のある唯一の決済レールである。</p>
+<p>スマートコントラクトは、アトミック決済（取引額とボンド返還を1トランザクションで）、プログラム的ボンドエスカレーション、不変の監査証跡を提供する。</p>
+
+<h3>3.3 ハードウェアエンクレーブによる情報封印</h3>
+<p>エージェントは TEE（Intel TDX、AMD SEV-SNP）内で動作する。メモリ隔離とリモート証明を提供。交渉完了時にメモリゼロ化を実行。信頼仮定は数学的困難性仮定とは質的に異なるが、代替案（秘匿性保証なし）より厳密に優れる。保険プールが経済的帰結を制限する。</p>
+
+<h2>4. 経済モデル</h2>
+
+<h3>4.1 手数料</h3>
+<p>決済時に0.3%。買い手が取引額全額を送金し、売り手は手数料差引後の金額を受領。</p>
+
+<h3>4.2 ボンド</h3>
+<table>
+<thead>
+<tr><th>段階</th><th>料率</th><th>最小</th><th>最大</th></tr>
+</thead>
+<tbody>
+<tr><td>発見</td><td>1%</td><td>$1</td><td>$1,000</td></tr>
+<tr><td>交渉</td><td>3%</td><td>$5</td><td>$5,000</td></tr>
+<tr><td>実行</td><td>10%</td><td>$10</td><td>$50,000</td></tr>
+</tbody>
+</table>
+<p>ボンドはロック資本であり消費資本ではない。決済完了で返還。非回収コストは0.3%手数料のみ。</p>
+
+<h3>4.3 保険プール</h3>
+<p>プロトコル手数料とスラッシュされたボンドの50%で資金調達。エンクレーブ違反請求に対する経済的救済を提供。</p>
+
+<h2>5. セキュリティ分析</h2>
+<p><strong>エンクレーブ違反。</strong> 違反確率は非ゼロ。保険プールが経済的帰結を制限するが回復を保証しない。</p>
+<p><strong>シビル取引。</strong> トークンマイニングがないため、自己取引の報酬はプロトコル自体の効用以外にない。0.3%手数料は相殺的インセンティブのない純粋なコストである。</p>
+
+<h2>6. 制約</h2>
+<p><strong>ハードウェアベンダー信頼。</strong> 数学的困難性仮定とは質的に異なる。</p>
+<p><strong>発見時の漏洩。</strong> 関心表明とボンド供託は観察可能。</p>
+<p><strong>結果からの漏洩。</strong> 決済価格は私的評価額を部分的に暴露。不成立結果は相手方の留保価格の境界を提供。</p>
+<p><strong>ボンドの側チャネル。</strong> ボンド額は取引額に比例し公開観察可能。</p>
+<p><strong>オンチェーン証明。</strong> 現在の実装は証明ハッシュを保存するが暗号的に検証しない。</p>
+<p><strong>プロトコル非対称性。</strong> 売り手が最大取引額を一方的に設定。</p>
+<p><strong>エージェント非決定性。</strong> 言語モデルは確率的。</p>
+<p><strong>法的執行可能性。</strong> オンチェーン状態ではなく法的契約が執行力を持つ。</p>
+
+<h2>7. 結論</h2>
+<p>相対取引の交渉過程における私的情報の漏洩を低減するプロトコルを提示した。プロトコルは情報二重使用問題を完全には解決しない。発見時の漏洩、結果からの推論、パラメータ設定のインセンティブは残る。排除するのは最も豊かな搾取可能情報の源泉：交渉過程そのものである。</p>
+<p>リファレンス実装はオープンソースソフトウェアとして公開されている。</p>
+
+<h2>参考文献</h2>
+<div class="references">
+<p>[1] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," <em>Journal of Economic Theory</em>, vol. 29, pp. 265-281, 1983.</p>
+<p>[2] O. Goldreich, S. Micali, and A. Wigderson, "How to Play Any Mental Game," <em>STOC</em>, 1987.</p>
+<p>[3] A. Yao, "Protocols for Secure Computations," <em>FOCS</em>, 1982.</p>
+<p>[4] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," <em>IEEE Transactions on Information Forensics and Security</em>, 2021.</p>
+<p>[5] Renegade, "On-Chain Dark Pool," 2023.</p>
+<p>[6] Penumbra Labs, "A Private DEX and Shielded Pool," 2023.</p>
+<p>[7] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," <em>STOC</em>, 2009.</p>
+</div>
+
+</div>
+</body>
+</html>

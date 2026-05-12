@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sealed Trade Protocol</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    padding: 60px 20px;
+  }
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .author {
+    text-align: center;
+    font-size: 11pt;
+    margin-bottom: 4px;
+    font-weight: bold;
+  }
+  .email {
+    text-align: center;
+    font-size: 10pt;
+    color: #444;
+    margin-bottom: 36px;
+    font-family: monospace;
+  }
+  h2 {
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 11.5pt;
+    font-weight: bold;
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+  p {
+    margin-bottom: 12px;
+    text-align: justify;
+    hyphens: auto;
+  }
+  .abstract p {
+    font-style: italic;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #999;
+    padding: 6px 10px;
+    text-align: left;
+  }
+  th {
+    background: #f0f0f0;
+    font-weight: bold;
+  }
+  .formula {
+    text-align: center;
+    margin: 16px 0;
+    font-style: italic;
+  }
+  .references {
+    font-size: 10pt;
+  }
+  .references p {
+    margin-bottom: 6px;
+    text-indent: -2em;
+    padding-left: 2em;
+    text-align: left;
+  }
+  @media print {
+    body { padding: 0; }
+    .container { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Sealed Trade Protocol: A Peer-to-Peer Bilateral Trade System with Information-Sealed Negotiation</h1>
+<div class="author">Shota Nagafuchi</div>
+<div class="email">sealed-trade@proton.me</div>
+
+<h2>Abstract</h2>
+<div class="abstract">
+<p>We propose a protocol for bilateral trade that reduces the leakage of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. A buyer's willingness to pay, once signaled through an offer, can never be unsignaled. A seller's urgency, once revealed through a concession, permanently weakens their position. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal, and all negotiation state is destroyed upon completion. Only the final outcome &mdash; agreement or no deal &mdash; crosses the enclave boundary. Settlement occurs on-chain via bonded smart contracts using stablecoin as the payment rail.</p>
+</div>
+
+<h2>1. Introduction</h2>
+<p>Private bilateral markets &mdash; IP licensing, M&amp;A, real estate &mdash; require negotiation to reach agreement. But negotiation itself is a destructive act: every offer, counteroffer, and hesitation reveals private information that the counterparty can exploit. The information required to reach a deal is the same information used to worsen its terms.</p>
+
+<p>We call this the <strong>double-use of private information</strong>. When two parties negotiate, each party's private information &mdash; their reservation price, urgency, alternatives &mdash; is necessarily communicated during the process. Once communicated, this information can be used by the counterparty to extract surplus beyond what a fair exchange would produce.</p>
+
+<p>Consider a patent licensing negotiation. The licensee knows the maximum they would pay; the licensor knows the minimum they would accept. In an ideal negotiation, they would agree on a price within this zone of possible agreement (ZOPA) without either party learning the other's boundary. In practice, every offer reveals information. A first offer of $100K signals willingness to pay at least $100K. A counteroffer of $500K signals willingness to accept at most $500K. Through iterated rounds, each party's private valuation is progressively disclosed and exploited.</p>
+
+<p>Myerson and Satterthwaite [1] proved that no incentive-compatible mechanism can achieve ex-post efficiency in bilateral trade with private valuations. We do not claim to circumvent this impossibility. The strategic tension in parameter-setting remains: a principal who signs a maximum price of $80K when their true maximum is $100K is shading their parameters, just as a negotiator might shade their initial offer. The impossibility applies at the parameter-setting stage with the same force as at the negotiation stage.</p>
+
+<p>What the protocol does achieve is a reduction in information leakage during negotiation itself. The counterparty cannot observe the negotiation dynamics &mdash; how quickly the agent conceded, how many rounds it took, what intermediate offers were made. This intermediate information, which experienced negotiators exploit systematically, is sealed and destroyed.</p>
+
+<h3>1.1 Related Work</h3>
+<p>Hardware enclaves for confidential computation have been explored in blockchain contexts, including Oasis Network and Secret Network, which use TEEs to enable private smart contract execution. These systems protect on-chain computation but do not address multi-round bilateral negotiation between autonomous agents.</p>
+
+<p>Multi-party computation (MPC) [2] enables joint computation over private inputs without revealing them. However, MPC requires the computation to be expressed as a circuit, which precludes the open-ended natural-language negotiation central to bilateral trade.</p>
+
+<p>Yao's garbled circuits [3] and subsequent work on privacy-preserving negotiation [4] address two-party computation with private inputs, but are limited to predefined protocols rather than free-form agent interaction.</p>
+
+<p>Dark pools [5][6] solve information leakage for fungible token swaps. Bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.</p>
+
+<h3>1.2 Scope and Limitations of This Claim</h3>
+<p>The protocol addresses <strong>Layer 2</strong> of the information double-use problem: leakage during negotiation. It does not fully solve Layer 1 (discovery leakage &mdash; expressing interest reveals demand) or the inference possible from outcomes (settlement prices and no-deal results carry information). These residual leakage channels are discussed in Section 6.</p>
+
+<h2>2. The Information Double-Use Problem</h2>
+
+<h3>2.1 Definition</h3>
+<p>In bilateral trade, private information serves two conflicting purposes:</p>
+<p>1. <strong>Reaching agreement</strong>: Both parties must communicate preferences to find mutually acceptable terms.</p>
+<p>2. <strong>Maximizing individual surplus</strong>: Each party wants to conceal preferences to prevent the counterparty from extracting value.</p>
+<p>The fundamental tension is that the information required for (1) is the same information exploited in (2). We call this <strong>information double-use</strong>: private information that is used once to facilitate a deal is reused to worsen its terms.</p>
+
+<h3>2.2 Three Layers</h3>
+<p>The problem manifests at three distinct points in the trade lifecycle:</p>
+<p><strong>Layer 1: Discovery leakage.</strong> Expressing interest in an asset reveals demand. A buyer who contacts a patent holder has revealed that the patent has strategic value to them.</p>
+<p><strong>Layer 2: Negotiation extraction.</strong> Each offer and counteroffer is a signal. Anchoring effects, response timing, concession patterns, and even the choice to continue negotiating all leak information about private valuations.</p>
+<p><strong>Layer 3: Post-settlement persistence.</strong> After a deal closes, the intermediary retains complete knowledge of both parties' reservation prices and negotiation behavior.</p>
+
+<h2>3. Protocol Design</h2>
+
+<h3>3.1 Trade Lifecycle</h3>
+<p>A trade progresses through six states: Listed &rarr; Matched &rarr; Negotiating &rarr; Agreed &rarr; Settled, with cancellation possible from any pre-agreement state.</p>
+<p><strong>Listed.</strong> A seller publishes a hashed asset description and a maximum deal value. They post a Discovery bond.</p>
+<p><strong>Matched.</strong> A buyer expresses interest and posts a matching bond.</p>
+<p><strong>Negotiating.</strong> Both parties escalate their bonds. Each party signs a parameter set defining acceptable terms for their AI agent. The signed parameters are loaded into a hardware-isolated enclave. The agents negotiate via a structured message protocol. Neither agent can communicate outside the enclave.</p>
+<p><strong>Agreed.</strong> Both parties escalate to the highest bond tier. The agreement hash and enclave attestation are recorded on the settlement layer.</p>
+<p><strong>Settled.</strong> The deal value transfers from buyer to seller, net of the protocol fee. Bonds are returned.</p>
+<p><strong>Cancelled.</strong> Before negotiation, bonds are returned without penalty. During or after negotiation, the cancelling party's bond is slashed: half to the counterparty, half to the insurance pool.</p>
+
+<h3>3.2 Information Sealing via Hardware Enclaves</h3>
+<p>Agents run inside Trusted Execution Environments (Intel TDX, AMD SEV-SNP). The enclave provides memory isolation and remote attestation. Upon negotiation completion, the enclave executes a memory-zeroing procedure. Standardized attestation of destruction is an area of active development; implementations must demonstrate this property through platform-specific mechanisms.</p>
+
+<h3>3.3 Trust Assumption</h3>
+<p>The enclave requires trusting the hardware vendor. This differs from mathematical hardness assumptions: ECDSA's security rests on a mathematical conjecture; enclave security rests on hardware manufacturing and firmware, subject to supply chain risks and implementation bugs. We accept this tradeoff because the alternative &mdash; no confidentiality guarantee at all &mdash; is strictly worse. An insurance pool bounds the economic consequence of failure.</p>
+
+<h3>3.4 Why Crypto as Payment Rail</h3>
+<p>Agent-to-agent settlement requires a programmable, permissionless payment rail. Traditional payment systems (bank transfers, credit cards) require human approval, take hours to days, and impose counterparty risk. Stablecoin on an L2 chain provides sub-second finality, full programmability, and negligible transaction cost &mdash; the only payment rail compatible with autonomous agent operation.</p>
+<p>Smart contracts provide atomic settlement (deal value and bond release in one transaction), programmatic bond escalation, and an immutable audit trail &mdash; capabilities that would otherwise require a trusted third-party escrow agent.</p>
+
+<h3>3.5 Agent Design</h3>
+<p>Each agent is a language model running inside the enclave, bound by the principal's signed parameters as an irrevocable mandate. This constrains the agent's action space but does not eliminate non-determinism &mdash; negotiation quality depends on the underlying model's capabilities.</p>
+
+<h2>4. Economic Model</h2>
+
+<h3>4.1 Fee Structure</h3>
+<p>A 0.3% fee is collected at settlement. The buyer transfers the full deal value; the seller receives the deal value minus the fee. The fee is routed to the protocol's insurance pool and operational treasury.</p>
+
+<h3>4.2 Bonds</h3>
+<p>Bonds prevent spam and provide economic recourse. The bond amount at each stage is:</p>
+<p class="formula"><em>B</em>(<em>d</em>, stage) = clamp(<em>d</em> &middot; <em>r</em><sub>stage</sub>, <em>B</em><sub>min</sub>, <em>B</em><sub>max</sub>)</p>
+
+<table>
+<thead>
+<tr><th>Stage</th><th>Rate</th><th>Minimum</th><th>Maximum</th></tr>
+</thead>
+<tbody>
+<tr><td>Discovery</td><td>1%</td><td>$1</td><td>$1,000</td></tr>
+<tr><td>Negotiation</td><td>3%</td><td>$5</td><td>$5,000</td></tr>
+<tr><td>Execution</td><td>10%</td><td>$10</td><td>$50,000</td></tr>
+</tbody>
+</table>
+
+<p>Escalation is additive. Bonds are returned on successful settlement. On dispute, the faulty party's bond is split equally between the counterparty and the insurance pool.</p>
+<p>Bonds are locked capital, not spent capital. The non-recoverable cost of a settled trade is the 0.3% fee only.</p>
+
+<h3>4.3 Insurance Pool</h3>
+<p>The insurance pool is funded by protocol fees and 50% of slashed bonds. It provides economic recourse for enclave breach claims. Pool balance and claim history are publicly verifiable on-chain.</p>
+
+<h2>5. Security Analysis</h2>
+
+<h3>5.1 Enclave Breach</h3>
+<p>The protocol's confidentiality depends on hardware enclave integrity. Breach probability is non-zero. The insurance pool bounds economic consequence but does not guarantee recovery. Historical TEE vulnerabilities (Foreshadow, AEPIC Leak, CacheOut) demonstrate that enclave security is not absolute.</p>
+
+<h3>5.2 Economic Attacks</h3>
+<p><strong>Bond griefing.</strong> Cost: attacker's own bond (3%+ of deal value). Benefit: counterparty's wasted time. Minimum bond ensures non-trivial cost.</p>
+<p><strong>Sybil trading.</strong> Without token mining, there is no reward for self-trading beyond the utility of the protocol itself. The 0.3% fee is a pure cost with no offsetting incentive.</p>
+
+<h3>5.3 Settlement Integrity</h3>
+<p>The settlement layer enforces a strict state machine. Each transition requires bond escalation, cryptographic signatures, and enclave attestation. No administrative overrides exist.</p>
+
+<h2>6. Limitations</h2>
+<p><strong>Hardware vendor trust.</strong> Confidentiality depends on enclave vendor integrity. Unlike mathematical hardness assumptions, this involves supply chains and manufacturing processes.</p>
+<p><strong>Discovery leakage.</strong> The protocol does not seal the discovery phase. Expressing interest and posting bonds are observable actions that reveal demand.</p>
+<p><strong>Outcome leakage.</strong> Settlement prices partially reveal private valuations. No-deal outcomes provide bounds on the other party's reservation price.</p>
+<p><strong>Bond side channel.</strong> Bond amounts are proportional to deal value and publicly observable, revealing deal scale to third parties.</p>
+<p><strong>On-chain attestation.</strong> The current implementation stores attestation hashes but does not cryptographically verify them. Verification requires integration with platform-specific TEE attestation services.</p>
+<p><strong>Protocol asymmetry.</strong> The seller sets the maximum deal value; the buyer has no on-chain equivalent. The protocol is structurally seller-initiated.</p>
+<p><strong>Agent non-determinism.</strong> Language models are stochastic. Identical parameters may produce different negotiation outcomes.</p>
+<p><strong>Legal enforceability.</strong> The protocol produces a cryptographic agreement hash, but legal contracts &mdash; not on-chain state &mdash; are the enforceable instrument in most jurisdictions.</p>
+
+<h2>7. Conclusion</h2>
+<p>We have presented a protocol that reduces the leakage of private information during bilateral trade negotiation. The mechanism confines negotiation to hardware-isolated AI agents and destroys all intermediate state, ensuring that negotiation dynamics &mdash; offers, counteroffers, timing, concession patterns &mdash; are not available to either party after the trade concludes.</p>
+<p>The protocol does not solve the information double-use problem completely. Discovery leakage, outcome inference, and parameter-setting incentives remain. What it eliminates is the richest source of exploitable information: the negotiation process itself.</p>
+<p>A reference implementation is available as open-source software.</p>
+
+<h2>References</h2>
+<div class="references">
+<p>[1] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," <em>Journal of Economic Theory</em>, vol. 29, pp. 265-281, 1983.</p>
+<p>[2] O. Goldreich, S. Micali, and A. Wigderson, "How to Play Any Mental Game," <em>STOC</em>, 1987.</p>
+<p>[3] A. Yao, "Protocols for Secure Computations," <em>FOCS</em>, 1982.</p>
+<p>[4] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," <em>IEEE Transactions on Information Forensics and Security</em>, 2021.</p>
+<p>[5] Renegade, "On-Chain Dark Pool," 2023.</p>
+<p>[6] Penumbra Labs, "A Private DEX and Shielded Pool," 2023.</p>
+<p>[7] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," <em>STOC</em>, 2009.</p>
+</div>
+
+</div>
+</body>
+</html>
