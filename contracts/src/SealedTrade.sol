@@ -5,12 +5,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BondVault} from "./BondVault.sol";
-import {ContributionLedger} from "./ContributionLedger.sol";
 import {Treasury} from "./Treasury.sol";
 
 /// @title SealedTrade — Core trade lifecycle orchestrator
 /// @notice Manages bilateral trades from listing through settlement.
-///         Coordinates BondVault (collateral), ContributionLedger (mining), Treasury (fees).
+///         Coordinates BondVault (collateral) and Treasury (fees + insurance).
 contract SealedTrade is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -53,7 +52,6 @@ contract SealedTrade is ReentrancyGuard {
     // --- State ---
     IERC20 public immutable usdc;
     BondVault public immutable bondVault;
-    ContributionLedger public immutable contributionLedger;
     Treasury public immutable treasury;
 
     mapping(bytes32 => Trade) public trades;
@@ -75,17 +73,14 @@ contract SealedTrade is ReentrancyGuard {
     constructor(
         address _usdc,
         address _bondVault,
-        address _contributionLedger,
         address _treasury
     ) {
         require(_usdc != address(0), "zero usdc");
         require(_bondVault != address(0), "zero bondVault");
-        require(_contributionLedger != address(0), "zero ledger");
         require(_treasury != address(0), "zero treasury");
 
         usdc = IERC20(_usdc);
         bondVault = BondVault(_bondVault);
-        contributionLedger = ContributionLedger(_contributionLedger);
         treasury = Treasury(_treasury);
 
         DOMAIN_SEPARATOR = keccak256(abi.encode(
@@ -224,9 +219,6 @@ contract SealedTrade is ReentrancyGuard {
 
         // Release all bonds
         bondVault.releaseBonds(tradeId, t.buyer, t.seller);
-
-        // Record trade for mining rewards
-        contributionLedger.recordTrade(t.buyer, t.seller, dealValue);
 
         emit TradeSettled(tradeId, dealValue, fee);
     }

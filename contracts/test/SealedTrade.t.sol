@@ -4,9 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {SealedTrade} from "../src/SealedTrade.sol";
 import {BondVault} from "../src/BondVault.sol";
-import {ContributionLedger} from "../src/ContributionLedger.sol";
 import {Treasury} from "../src/Treasury.sol";
-import {SealToken} from "../src/SealToken.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockUSDC is ERC20 {
@@ -17,10 +15,8 @@ contract MockUSDC is ERC20 {
 
 contract SealedTradeTest is Test {
     MockUSDC usdc;
-    SealToken sealToken;
     Treasury treasury;
     BondVault bondVault;
-    ContributionLedger ledger;
     SealedTrade sealedTrade;
 
     address owner = makeAddr("owner");
@@ -38,34 +34,23 @@ contract SealedTradeTest is Test {
         treasury = new Treasury(address(usdc), owner);
         bondVault = new BondVault(address(usdc), address(treasury));
 
-        // Predict ledger address for SealToken
-        address predictedLedger = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
-        sealToken = new SealToken(address(treasury), predictedLedger);
-        ledger = new ContributionLedger(address(sealToken));
-        require(address(ledger) == predictedLedger, "prediction failed");
-
         sealedTrade = new SealedTrade(
             address(usdc),
             address(bondVault),
-            address(ledger),
             address(treasury)
         );
 
         bondVault.setSealedTrade(address(sealedTrade));
-        ledger.setSealedTrade(address(sealedTrade));
         treasury.setAuthorized(address(sealedTrade), address(bondVault));
 
-        // Fund participants generously
+        // Fund participants
         usdc.mint(seller, 10_000_000e6);
         usdc.mint(buyer, 10_000_000e6);
 
-        // Approve BondVault for bonds
         vm.prank(seller);
         usdc.approve(address(bondVault), type(uint256).max);
         vm.prank(buyer);
         usdc.approve(address(bondVault), type(uint256).max);
-
-        // Approve SealedTrade for deal value + fee transfers
         vm.prank(seller);
         usdc.approve(address(sealedTrade), type(uint256).max);
         vm.prank(buyer);
@@ -109,35 +94,26 @@ contract SealedTradeTest is Test {
         sealedTrade.expressInterest(tradeId);
 
         vm.prank(seller);
-        sealedTrade.beginNegotiation(tradeId, bytes32("attestation"));
+        sealedTrade.beginNegotiation(tradeId, bytes32(uint256(1)));
 
-        // Commit agreement with signatures
         uint256 finalDealValue = 8_000e6;
         bytes32 termsHash = keccak256("terms");
         _commitAgreement(tradeId, finalDealValue, termsHash);
 
-        // Record balances before settlement
         uint256 sellerBefore = usdc.balanceOf(seller);
-        uint256 buyerBefore = usdc.balanceOf(buyer);
         uint256 treasuryBefore = usdc.balanceOf(address(treasury));
 
-        // Settle
         vm.prank(buyer);
         sealedTrade.settle(tradeId);
 
-        // Verify deal value transferred
-        uint256 fee = (finalDealValue * 30) / 10_000; // 0.3%
+        uint256 fee = (finalDealValue * 30) / 10_000;
         uint256 sellerProceeds = finalDealValue - fee;
-
-        // Seller received proceeds + their bond back
         uint256 sellerBondReturn = bondVault.getBondAmount(BondVault.BondStage.Execution, finalDealValue);
-        assertEq(usdc.balanceOf(seller), sellerBefore + sellerProceeds + sellerBondReturn);
 
-        // Treasury received fee
+        assertEq(usdc.balanceOf(seller), sellerBefore + sellerProceeds + sellerBondReturn);
         assertEq(usdc.balanceOf(address(treasury)), treasuryBefore + fee);
         assertEq(treasury.feePool(), fee);
 
-        // Trade state is Settled
         (,,,,,,, SealedTrade.TradeState state,,) = sealedTrade.trades(tradeId);
         assertEq(uint8(state), uint8(SealedTrade.TradeState.Settled));
     }
@@ -160,7 +136,6 @@ contract SealedTradeTest is Test {
 
         (,,,,,,, SealedTrade.TradeState state,,) = sealedTrade.trades(tradeId);
         assertEq(uint8(state), uint8(SealedTrade.TradeState.Cancelled));
-
         assertGe(usdc.balanceOf(seller), sellerBefore);
     }
 
@@ -171,18 +146,14 @@ contract SealedTradeTest is Test {
         sealedTrade.expressInterest(tradeId);
 
         vm.prank(seller);
-        sealedTrade.beginNegotiation(tradeId, bytes32("attestation"));
+        sealedTrade.beginNegotiation(tradeId, bytes32(uint256(1)));
 
         uint256 buyerBefore = usdc.balanceOf(buyer);
 
-        // Seller cancels during negotiation — gets slashed
         vm.prank(seller);
         sealedTrade.cancel(tradeId);
 
-        // Buyer should have received 50% of seller's slashed bond + their own bond back
         assertGt(usdc.balanceOf(buyer), buyerBefore);
-
-        // Treasury should have received 50% of slashed bond
         assertGt(treasury.slashPool(), 0);
     }
 
@@ -190,7 +161,6 @@ contract SealedTradeTest is Test {
         bytes32 tradeId = _createListing(10_000e6);
 
         vm.warp(block.timestamp + 8 days);
-
         sealedTrade.expireTrade(tradeId);
 
         (,,,,,,, SealedTrade.TradeState state,,) = sealedTrade.trades(tradeId);
@@ -212,7 +182,6 @@ contract SealedTradeTest is Test {
         uint256 finalDealValue,
         bytes32 termsHash
     ) internal {
-        // Build EIP-712 digest
         bytes32 structHash = keccak256(abi.encode(
             sealedTrade.AGREEMENT_TYPEHASH(),
             tradeId,
@@ -235,7 +204,7 @@ contract SealedTradeTest is Test {
             tradeId,
             finalDealValue,
             termsHash,
-            bytes32("final_attestation"),
+            bytes32(uint256(2)),
             buyerSig,
             sellerSig
         );

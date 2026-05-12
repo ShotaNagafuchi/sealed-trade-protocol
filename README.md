@@ -4,19 +4,17 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636.svg)](https://soliditylang.org/)
 
-**A protocol that prevents the double-use of private information in bilateral trade.**
+**A protocol that reduces the leakage of private information in bilateral trade.**
 
 ## The Problem
 
-In private markets — IP licensing, M&A, real estate — negotiation itself leaks information. When a buyer expresses interest, the seller learns there is demand. When a seller lists an asset, the buyer learns there is urgency. Intermediaries who promise confidentiality have no technical mechanism to enforce it.
+In private markets — IP licensing, M&A, real estate — negotiation itself leaks information. When a buyer expresses interest, the seller learns there is demand. When a seller lists an asset, the buyer learns there is urgency. Every offer, counteroffer, and hesitation becomes a signal that the counterparty can exploit.
 
-This is the **information double-use problem**: the act of negotiating reveals private constraints that the counterparty can exploit. Every offer, counteroffer, and hesitation becomes a signal. The information you share to reach a deal is reused to worsen your terms.
-
-No existing infrastructure solves this. Brokers are trusted third parties with no technical enforcement. Online marketplaces are public by design. Even encrypted channels only protect data in transit — not from the other party at the table.
+This is the **information double-use problem**: the information you share to reach a deal is reused to worsen your terms.
 
 ## The Solution
 
-Sealed Trade makes bilateral negotiation **information-tight**. AI agents negotiate inside hardware-isolated enclaves (TEE). Neither party — nor any intermediary, nor the protocol itself — can observe the negotiation. Only the outcome crosses the boundary: an agreement, or "no deal."
+Sealed Trade confines negotiation to AI agents inside hardware-isolated enclaves (TEE). Neither party can observe the negotiation. Only the outcome crosses the boundary: an agreement, or "no deal."
 
 ```
  Seller                                                        Buyer
@@ -35,48 +33,30 @@ Sealed Trade makes bilateral negotiation **information-tight**. AI agents negoti
    |                               |
    |                               v
    |                    Smart Contracts (L2)
-   |                  Bond · Fee · Mining · Attestation
+   |                    Escrow · Bond · Insurance
    |                               |
    +-------------------------------+------------------------------+
                            Settlement
 ```
 
-### How It Works
+### Why Smart Contracts
 
-1. **Each party signs parameters** — acceptable price range, required terms, deal-breakers. These are the agent's mandate.
-2. **AI agents negotiate in a TEE enclave** — Intel TDX or AMD SEV-SNP. The agents run LLMs to negotiate freely within their signed parameters. No human or external process can read enclave memory.
-3. **Only the outcome exits** — the final agreement (or "no deal"). All intermediate state — offers, counteroffers, reasoning — is destroyed when the enclave terminates.
-4. **Smart contracts settle** — bonds are posted at each stage, the deal value transfers on settlement, and mining rewards are distributed.
+Agent-to-agent settlement requires a programmable, permissionless payment rail. Traditional payments (bank transfers, credit cards) need human approval and take hours. Stablecoin on L2 provides sub-second finality with full programmability — the only rail compatible with autonomous agent operation.
+
+Smart contracts provide: atomic settlement (deal value and bond release in one transaction), programmatic bond escalation, and an immutable audit trail.
 
 ### Why TEE
 
 | Approach | Why it doesn't work here |
 |----------|--------------------------|
-| MPC | Requires predefined computation circuits — can't support free-form LLM negotiation |
-| FHE | 10,000-100,000x overhead makes LLM inference infeasible |
-| ZKP | Proves computation correctness but can't seal arbitrary negotiation content |
+| MPC | Requires predefined circuits — can't support free-form LLM negotiation |
+| FHE | Orders of magnitude too slow for LLM inference |
+| ZKP | Proves correctness but can't seal arbitrary negotiation content |
 | Trusted broker | No technical enforcement — trust is the product, and trust fails |
 
-TEE requires trusting the hardware vendor (Intel, AMD) — a different class of assumption than mathematical hardness, but one with a 10+ year operational track record. The protocol's insurance pool provides economic recourse if the hardware guarantee fails.
+TEE requires trusting the hardware vendor — a different class of assumption than mathematical hardness, but one with a 10+ year operational track record. The insurance pool provides economic recourse if the guarantee fails.
 
 ## Economic Design
-
-The protocol uses volume-based mining with halving to solve the cold-start problem. Early participants earn disproportionately more tokens per dollar traded.
-
-### Mining Schedule
-
-| Period | Cumulative Volume | SEAL Allocated | Mining Rate |
-|--------|-------------------|----------------|-------------|
-| 0 | $0 — $10K | 47,500,000 | 4,750 SEAL/$1 |
-| 1 | $10K — $20K | 23,750,000 | 2,375 SEAL/$1 |
-| 2 | $20K — $40K | 11,875,000 | 593.75 SEAL/$1 |
-| 3 | $40K — $80K | 5,937,500 | 148.44 SEAL/$1 |
-| ... | ... | ... | ... |
-| 21 | ~$10.5B — ~$21B | 23 | ~0 SEAL/$1 |
-
-- **100M SEAL total supply** (95M mining + 5M treasury). Fixed at deployment. No inflation.
-- **Halving by volume**, not time. Each period requires 2x the cumulative trade volume.
-- **~$21B cumulative volume** to fully mine all tokens.
 
 ### Bonds
 
@@ -92,23 +72,23 @@ Bonds are returned on settlement. On dispute, the faulty party's bond is slashed
 
 ### Fee
 
-0.3% of deal value on settlement.
+0.3% of deal value on settlement. This is the only non-recoverable cost.
+
+### Insurance Pool
+
+Funded by protocol fees and slashed bonds. Provides economic recourse for enclave breach claims. Pool balance and claim history are publicly verifiable on-chain.
 
 ## Repository
 
 ```
 contracts/src/
-  SealToken.sol             ERC-20 (100M fixed supply)
-  SealedTrade.sol           Trade lifecycle (EIP-712 signatures)
-  BondVault.sol             3-stage bond escrow
-  ContributionLedger.sol    Mining with halving
-  Treasury.sol              Fee vault + insurance pool
+  SealedTrade.sol       Trade lifecycle + escrow (EIP-712 signatures)
+  BondVault.sol         3-stage bond escrow
+  Treasury.sol          Fee vault + insurance pool
 
 simulation/
-  sealed_economics.py       Reference implementation of all formulas
-  halving_check.py          Halving schedule verification
-  monte_carlo.py            Market scenario simulation
-  test_simulation.py        50 unit tests
+  sealed_economics.py   Bond and fee calculations
+  test_simulation.py    Unit tests
 ```
 
 ## Quick Start
@@ -131,19 +111,16 @@ python -m pytest simulation/test_simulation.py -v
 
 **Not audited. Do not deploy with real funds.**
 
-Security hardening applied: CEI pattern, ReentrancyGuard, EIP-712 with malleability protection, Ownable2Step, deployer-gated initialization, pool-level accounting enforcement. See [SECURITY.md](SECURITY.md).
+Security hardening: CEI pattern, ReentrancyGuard, EIP-712 with malleability protection, Ownable2Step, deployer-gated initialization, pool-level accounting enforcement. See [SECURITY.md](SECURITY.md).
 
 ## Documentation
 
 - [Paper](PAPER.md) — Full protocol paper ([日本語版](PAPER_ja.md))
-- [Economic Model](ECONOMIC_MODEL.md) — Mathematical specification
-- [Position Paper](POSITION_PAPER.md) — TEE justification
 - [Contributing](CONTRIBUTING.md) — Development setup and guidelines
 
 ## Status
 
-- [x] Smart contracts (settlement layer) + 103 automated tests
-- [x] Economic simulation + Monte Carlo verification
+- [x] Smart contracts (settlement layer) + 51 automated tests
 - [ ] **Agent runtime — the TEE-confined negotiation engine (next milestone)**
 - [ ] Professional security audit
 - [ ] Testnet deployment
