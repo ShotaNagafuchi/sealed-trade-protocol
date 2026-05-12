@@ -118,7 +118,7 @@ The first trade — a ¥10,000 self-trade — is the protocol's genesis block. L
 | Confidentiality | Trust-based | None | Hardware-enforced |
 | Fee | 5-15% | 2-5% | 0.3% |
 | Automation | Manual | Partial | AI agent |
-| Information leakage | High (broker knows all) | High (public listing) | None (sealed) |
+| Information leakage | High (broker knows all) | High (public listing) | Hardware-enforced (TEE-sealed) |
 | Dispute resolution | Legal system | Platform arbitration | Bond slashing + insurance |
 | Bootstrap cost | Relationships | Marketing spend | Self-trade genesis |
 

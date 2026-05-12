@@ -21,15 +21,15 @@ Sealed Trade makes bilateral negotiation **information-tight**. AI agents negoti
 ```
  Seller                                                        Buyer
    |                                                              |
-   |  [signs parameters: min price, terms]                        |
+   |  [signs parameters: min price, terms]    [signs parameters: max price, terms]
    |              |                                               |
-   |              v                                               |
+   |              v                                               v
    |    +-----------------------TEE Enclave-----------------------+
    |    |  Seller Agent  <-- A2A Protocol -->  Buyer Agent        |
    |    |  (LLM in TEE)     signed messages    (LLM in TEE)       |
    |    |                                                         |
    |    |  * Neither agent can exfiltrate data                    |
-   |    |  * Memory provably wiped after negotiation              |
+   |    |  * Memory destroyed after negotiation                   |
    |    |  * Only outcome (agree/no-deal) exits the enclave       |
    |    +--------------------------+------------------------------+
    |                               |
@@ -45,7 +45,7 @@ Sealed Trade makes bilateral negotiation **information-tight**. AI agents negoti
 
 1. **Each party signs parameters** — acceptable price range, required terms, deal-breakers. These are the agent's mandate.
 2. **AI agents negotiate in a TEE enclave** — Intel TDX or AMD SEV-SNP. The agents run LLMs to negotiate freely within their signed parameters. No human or external process can read enclave memory.
-3. **Only the outcome exits** — the final agreement (or "no deal"). All intermediate state — offers, counteroffers, reasoning — is kernel-level deleted with cryptographic attestation.
+3. **Only the outcome exits** — the final agreement (or "no deal"). All intermediate state — offers, counteroffers, reasoning — is destroyed when the enclave terminates.
 4. **Smart contracts settle** — bonds are posted at each stage, the deal value transfers on settlement, and mining rewards are distributed.
 
 ### Why TEE
@@ -57,13 +57,11 @@ Sealed Trade makes bilateral negotiation **information-tight**. AI agents negoti
 | ZKP | Proves computation correctness but can't seal arbitrary negotiation content |
 | Trusted broker | No technical enforcement — trust is the product, and trust fails |
 
-TEE requires trusting the hardware vendor (Intel, AMD). This is comparable to trusting that ECDSA is hard — an empirically validated assumption with a 10+ year track record. The protocol's insurance pool provides economic recourse if the hardware guarantee fails.
+TEE requires trusting the hardware vendor (Intel, AMD) — a different class of assumption than mathematical hardness, but one with a 10+ year operational track record. The protocol's insurance pool provides economic recourse if the hardware guarantee fails.
 
 ## Economic Design
 
-The protocol uses Bitcoin-style mining to bootstrap a two-sided market.
-
-**The cold-start problem**: buyers won't come without sellers, sellers won't come without buyers. Mining solves this by rewarding the first participants disproportionately — exactly as Bitcoin rewarded early miners with 50 BTC per block before anyone else was paying attention.
+The protocol uses volume-based mining with halving to solve the cold-start problem. Early participants earn disproportionately more tokens per dollar traded.
 
 ### Mining Schedule
 
@@ -94,7 +92,7 @@ Bonds are returned on settlement. On dispute, the faulty party's bond is slashed
 
 ### Fee
 
-0.3% of deal value on settlement. Compared to 5-15% for traditional brokers.
+0.3% of deal value on settlement.
 
 ## Repository
 
@@ -115,14 +113,18 @@ simulation/
 
 ## Quick Start
 
+Requires: [Foundry](https://getfoundry.sh/), Python 3.10+, Git with submodule support.
+
 ```bash
+git clone --recurse-submodules https://github.com/ShotaNagafuchi/sealed-trade-protocol.git
+cd sealed-trade-protocol
+
 # Smart contracts
-cd contracts && forge install && forge test -vvv
+cd contracts && forge build && forge test -vvv
 
 # Economic simulation
 pip install -r simulation/requirements.txt
 python -m pytest simulation/test_simulation.py -v
-python simulation/halving_check.py
 ```
 
 ## Security
@@ -140,11 +142,11 @@ Security hardening applied: CEI pattern, ReentrancyGuard, EIP-712 with malleabil
 
 ## Status
 
-- [x] Smart contracts + 103 automated tests
+- [x] Smart contracts (settlement layer) + 103 automated tests
 - [x] Economic simulation + Monte Carlo verification
+- [ ] **Agent runtime — the TEE-confined negotiation engine (next milestone)**
 - [ ] Professional security audit
-- [ ] Agent runtime (Rust + LLM in TEE)
-- [ ] Testnet deployment (Arbitrum Sepolia)
+- [ ] Testnet deployment
 
 ## License
 
