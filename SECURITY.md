@@ -36,8 +36,8 @@ If you discover a security vulnerability in the Sealed Trade Protocol smart cont
 
 | Severity | Description | Example |
 |----------|-------------|---------|
-| Critical | Direct loss of funds or token supply violation | Reentrancy draining BondVault, minting beyond MAX_SUPPLY |
-| High | Indirect loss of funds or protocol manipulation | Bond calculation bypass, halving schedule corruption |
+| Critical | Direct loss of funds | Reentrancy draining BondVault, unauthorized bond release |
+| High | Indirect loss of funds or protocol manipulation | Bond calculation bypass, fee accounting manipulation |
 | Medium | Protocol degradation without direct fund loss | Accounting desync, gas griefing |
 | Low | Minor issues with no fund risk | Informational findings, style issues |
 
