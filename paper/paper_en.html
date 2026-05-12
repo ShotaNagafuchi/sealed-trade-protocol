@@ -202,33 +202,24 @@
 
 <div class="abstract">
   <h2>Abstract</h2>
-  <p>We propose a protocol for bilateral trade that prevents the double-use of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations &mdash; a buyer's willingness to pay, a seller's urgency to sell &mdash; which counterparties exploit to extract surplus. This is the information analogue of Bitcoin's double-spending problem: the same piece of private information is used once to reach a deal and again to worsen the terms. Sealed Trade addresses this by confining negotiation to AI agents operating within Trusted Execution Environments (TEE). Each agent is bound by cryptographically signed parameters from its principal, negotiates via an agent-to-agent protocol, and provably destroys all negotiation state upon completion. Only the final outcome &mdash; agreement or no deal &mdash; crosses the enclave boundary. Settlement occurs on-chain via bonded smart contracts. A Bitcoin-style mining mechanism with volume-based halving bootstraps early adoption without requiring centralized market-making. We present the protocol design, economic model, security analysis, and a working implementation with 103 automated tests.</p>
+  <p>We propose a protocol for bilateral trade that prevents the double-use of private information during negotiation. In conventional private markets, the act of negotiating reveals private valuations which counterparties exploit to extract surplus. This is the information analogue of the double-spending problem: the same piece of private information is used once to reach a deal and again to worsen the terms. Sealed Trade addresses this by confining negotiation to AI agents operating within hardware-isolated enclaves. Each agent is bound by cryptographically signed parameters from its principal, and provably destroys all negotiation state upon completion. Only the final outcome &mdash; agreement or no deal &mdash; crosses the enclave boundary. Settlement occurs on-chain via bonded contracts with a volume-based mining mechanism that bootstraps early adoption.</p>
 </div>
 
 <h2>1. Introduction</h2>
 
 <p>Bitcoin solved the double-spending problem for digital cash: without a trusted third party, the same digital coin cannot be spent twice [1]. The solution &mdash; a distributed timestamp server with proof-of-work consensus &mdash; eliminated the need for banks in peer-to-peer electronic payments.</p>
 
-<p>We identify an analogous problem in bilateral trade: the <strong>double-use of private information</strong>. When two parties negotiate a deal, each party's private information &mdash; their reservation price, urgency, alternatives &mdash; is necessarily communicated during the negotiation process. Once communicated, this information can be used by the counterparty to extract surplus beyond what a fair exchange would produce.</p>
+<p>We identify an analogous problem in bilateral trade: the <strong>double-use of private information</strong>. When two parties negotiate a deal, each party&rsquo;s private information &mdash; their reservation price, urgency, alternatives &mdash; is necessarily communicated during the negotiation process. Once communicated, this information can be used by the counterparty to extract surplus beyond what a fair exchange would produce.</p>
 
-<p>Consider a patent licensing negotiation. The licensee knows the maximum they would pay; the licensor knows the minimum they would accept. In an ideal negotiation, they would agree on a price within the zone of possible agreement (ZOPA) without either party learning the other's boundary. In practice, every offer reveals information. A first offer of $100K signals willingness to pay at least $100K. A counteroffer of $500K signals willingness to accept at most $500K. Through iterated rounds, each party's private valuation is progressively disclosed and exploited.</p>
+<p>Consider a patent licensing negotiation. The licensee knows the maximum they would pay; the licensor knows the minimum they would accept. In an ideal negotiation, they would agree on a price within this zone of possible agreement (ZOPA) without either party learning the other&rsquo;s boundary. In practice, every offer reveals information. A first offer of $100K signals willingness to pay at least $100K. A counteroffer of $500K signals willingness to accept at most $500K. Through iterated rounds, each party&rsquo;s private valuation is progressively disclosed and exploited.</p>
 
 <p>This problem has been studied in mechanism design since Myerson and Satterthwaite [2], who proved that no incentive-compatible mechanism can achieve ex-post efficiency in bilateral trade with private valuations. Their impossibility result assumes that agents act strategically &mdash; which they must, because revealing truthful valuations is dominated by misrepresenting them.</p>
 
-<p>We circumvent this impossibility not by designing a new mechanism, but by changing the information architecture. If negotiation occurs between AI agents in a hardware-sealed environment, and all intermediate state is provably destroyed afterward, the information double-use problem disappears. Each party's private valuation is used exactly once &mdash; by their own agent, to negotiate &mdash; and is never available to the counterparty.</p>
-
-<h3>1.1 Contributions</h3>
-
-<ol>
-  <li>We formalize the <strong>information double-use problem</strong> as a three-layer issue: revelation during discovery, extraction during negotiation, and persistence after settlement.</li>
-  <li>We present a protocol that addresses all three layers using TEE-confined AI agent negotiation with cryptographic attestation of state destruction.</li>
-  <li>We design a <strong>volume-based mining mechanism</strong> with Bitcoin-style halving that bootstraps network effects without venture capital or centralized market-making.</li>
-  <li>We provide a working implementation: 5 smart contracts, a Python economic simulation, and 103 automated tests.</li>
-</ol>
+<p>We circumvent this impossibility not by designing a new mechanism, but by changing the information architecture. If negotiation occurs between AI agents in a hardware-sealed environment, and all intermediate state is provably destroyed afterward, the information double-use problem disappears. Each party&rsquo;s private valuation is used exactly once &mdash; by their own agent, to negotiate &mdash; and is never available to the counterparty.</p>
 
 <h2>2. The Information Double-Use Problem</h2>
 
-<h3>2.1 Problem Statement</h3>
+<h3>2.1 Definition</h3>
 
 <p>In bilateral trade, private information serves two conflicting purposes:</p>
 
@@ -245,98 +236,147 @@
 
 <p><strong>Layer 2: Negotiation extraction.</strong> Each offer and counteroffer is a signal. Anchoring effects, response timing, concession patterns, and even the choice to continue negotiating all leak information about private valuations. Experienced negotiators exploit these signals systematically.</p>
 
-<p><strong>Layer 3: Post-settlement persistence.</strong> After a deal closes, the intermediary (broker, advisor, platform) retains complete knowledge of both parties' reservation prices and negotiation behavior. This information can be used in future deals, shared with other clients, or leveraged in related transactions.</p>
+<p><strong>Layer 3: Post-settlement persistence.</strong> After a deal closes, the intermediary retains complete knowledge of both parties&rsquo; reservation prices and negotiation behavior. This information can be used in future deals, shared with other clients, or leveraged in related transactions.</p>
 
-<h3>2.3 Why Existing Solutions Fail</h3>
+<h3>2.3 Inadequacy of Existing Approaches</h3>
 
-<p><strong>Trusted intermediaries</strong> (brokers, investment bankers) promise confidentiality but have no technical enforcement mechanism. Their business model depends on information asymmetry &mdash; they profit from knowing what both sides will accept.</p>
+<p><strong>Trusted intermediaries</strong> promise confidentiality but have no technical enforcement mechanism. Their business model depends on information asymmetry &mdash; they profit from knowing what both sides will accept.</p>
 
-<p><strong>Cryptographic approaches</strong> (MPC, FHE, ZKP) can protect specific computations but cannot support the open-ended, natural-language negotiation required in complex bilateral deals. MPC requires predefined circuits. FHE imposes 10,000-100,000x computational overhead [4], making LLM inference infeasible. ZKP proves computation correctness but cannot seal arbitrary content.</p>
+<p><strong>Multi-party computation</strong> [9] can protect specific computations but cannot support the open-ended, natural-language negotiation required in complex bilateral deals. MPC protocols require predefined computation circuits; free-form LLM-based negotiation cannot be expressed as a circuit.</p>
 
-<p><strong>Dark pools</strong> (Renegade [5], Penumbra [6]) solve information leakage for fungible token swaps but bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.</p>
+<p><strong>Fully homomorphic encryption</strong> [4] imposes computational overhead several orders of magnitude beyond what is feasible for LLM inference, making it impractical for the scale of computation involved in agent-based negotiation.</p>
+
+<p><strong>Zero-knowledge proofs</strong> prove computation correctness but cannot seal arbitrary content. A ZKP can prove that an agent followed its parameters, but it cannot prevent the counterparty from observing the negotiation itself.</p>
+
+<p><strong>Dark pools</strong> [5][6] solve information leakage for fungible token swaps &mdash; matching buyers and sellers without revealing order flow. But bilateral trade involves non-fungible, complex assets that require multi-dimensional negotiation, not simple price matching.</p>
 
 <h2>3. Protocol Design</h2>
 
-<h3>3.1 Overview</h3>
+<h3>3.1 Trade Lifecycle</h3>
 
-<p>Sealed Trade is a four-layer architecture:</p>
+<p>A trade progresses through six states:</p>
 
 <pre>
-Layer 3: Vertical Adapters     (IP licensing, real estate, M&A)
-Layer 2: Sealed Bilateral Trade (this protocol)
-Layer 1: TEE Substrate          (Intel TDX / AMD SEV-SNP)
-Layer 0: Settlement             (EVM smart contracts on L2)
+Listed &rarr; Matched &rarr; Negotiating &rarr; Agreed &rarr; Settled
+                                         &nearr;
+                    (any state) &rarr; Cancelled
 </pre>
 
-<h3>3.2 Trade Lifecycle</h3>
+<p><strong>Listed.</strong> A seller publishes a hashed asset description and a maximum deal value. They post a Discovery bond. No information about the asset&rsquo;s nature is revealed &mdash; only that something is available.</p>
 
-<p>A trade progresses through six states: <em>Listed &rarr; Matched &rarr; Negotiating &rarr; Agreed &rarr; Settled</em>, with cancellation possible from any pre-agreement state.</p>
+<p><strong>Matched.</strong> A buyer expresses interest and posts a matching bond. Neither party can see the other&rsquo;s parameters.</p>
 
-<p><strong>Listed.</strong> A seller publishes a hashed asset description and a maximum deal value. They post a Discovery bond (1% of deal value, $1&ndash;$1,000).</p>
+<p><strong>Negotiating.</strong> Both parties escalate their bonds. Each party signs a parameter set defining acceptable terms for their AI agent:</p>
 
-<p><strong>Matched.</strong> A buyer expresses interest and posts a matching Discovery bond.</p>
+<pre>
+Parameters = {
+    price_range: [min, max],
+    required_terms: [...],
+    deal_breakers: [...],
+    strategy: "..."
+}
 
-<p><strong>Negotiating.</strong> Both parties escalate to Negotiation bonds (3%, $5&ndash;$5,000). Each party signs a parameter set defining acceptable terms for their AI agent. The signed parameters are loaded into a TEE enclave. The agents negotiate via the A2A protocol. Neither principal can observe the negotiation.</p>
+signature = sign(hash(Parameters), private_key)
+</pre>
 
-<p><strong>Agreed.</strong> If the agents reach agreement, both parties escalate to Execution bonds (10%, $10&ndash;$50,000). The agreement hash and TEE attestation are recorded on-chain.</p>
+<p>The signed parameters are loaded into a hardware-isolated enclave. The agents negotiate via a structured message protocol. Neither agent can communicate outside the enclave. Neither principal can observe the negotiation.</p>
 
-<p><strong>Settled.</strong> The deal value transfers from buyer to seller, minus the 0.3% protocol fee. Bonds are returned. Mining rewards are distributed.</p>
+<p><strong>Agreed.</strong> If the agents reach agreement, both parties escalate to the highest bond tier. The agreement hash and enclave attestation are recorded on the settlement layer.</p>
 
-<p><strong>Cancelled.</strong> Before negotiation, bonds are returned without penalty. During negotiation, the cancelling party's bond is slashed: 50% to counterparty, 50% to insurance pool.</p>
+<p><strong>Settled.</strong> The deal value transfers from buyer to seller, minus the protocol fee. Bonds are returned. Mining rewards are distributed.</p>
 
-<h3>3.3 TEE Substrate</h3>
+<p><strong>Cancelled.</strong> At any point before agreement, either party can cancel. Before negotiation, bonds are returned without penalty. During or after negotiation, the cancelling party&rsquo;s bond is slashed: half to the counterparty as compensation, half to the protocol&rsquo;s insurance pool.</p>
 
-<p>Agents run inside Trusted Execution Environments &mdash; Intel TDX or AMD SEV-SNP. The TEE provides: (1) memory isolation &mdash; the enclave's memory is encrypted in hardware; (2) remote attestation &mdash; cryptographic proof that specific code runs in an authentic enclave; (3) attestation of destruction &mdash; proof that all enclave memory has been zeroed after negotiation.</p>
+<h3>3.2 Information Sealing via Hardware Enclaves</h3>
 
-<h4>Trust Assumption</h4>
+<p>Agents run inside Trusted Execution Environments (Intel TDX, AMD SEV-SNP). The enclave provides three properties:</p>
 
-<p>TEE requires trusting the hardware vendor to correctly implement isolation. This is comparable to trusting that the discrete logarithm problem is hard (ECDSA). The insurance pool provides economic recourse: expected loss per trade &asymp; 10<sup>&minus;7</sup> &times; deal_value.</p>
+<ol>
+  <li><strong>Memory isolation.</strong> The enclave&rsquo;s memory is encrypted in hardware. No process, operating system, hypervisor, or physical access can read it.</li>
+  <li><strong>Remote attestation.</strong> The enclave generates a cryptographic proof that specific code is running in an authentic environment. Counterparties verify that the agent code has not been tampered with.</li>
+  <li><strong>Attestation of destruction.</strong> Upon negotiation completion, the enclave attests that all memory has been zeroed. This is a kernel-level operation &mdash; forensic recovery is infeasible.</li>
+</ol>
+
+<h3>3.3 Trust Assumption</h3>
+
+<p>The enclave requires trusting the hardware vendor to correctly implement isolation. We argue this assumption is comparable to standard cryptographic assumptions:</p>
+
+<ul>
+  <li>Using ECDSA requires trusting that the discrete logarithm problem is hard.</li>
+  <li>Using a hash function requires trusting collision resistance.</li>
+  <li>Using a hardware enclave requires trusting that the vendor&rsquo;s isolation implementation is correct.</li>
+</ul>
+
+<p>All three are empirically validated assumptions that could theoretically fail. The protocol bounds the economic consequence of failure through an insurance pool (see Section 5).</p>
 
 <h3>3.4 Agent Design</h3>
 
-<p>Each agent is an LLM running inside the TEE enclave. The agent receives signed parameters from its principal, negotiates with the counterparty's agent, evaluates offers against parameter boundaries, and either reaches agreement or declares no-deal. The principal's signed parameters act as an irrevocable mandate.</p>
+<p>Each agent is a language model running inside the enclave. The agent receives signed parameters from its principal, negotiates with the counterparty&rsquo;s agent using structured messages, evaluates offers against its parameter boundaries, and either reaches agreement or declares no-deal.</p>
+
+<p>The principal&rsquo;s signed parameters act as an <strong>irrevocable mandate</strong>. The agent cannot exceed them. If the principal sets a maximum price, the agent cannot agree to a higher one, regardless of the negotiation dynamics. This eliminates the agent alignment problem &mdash; the agent is not optimizing for its own objective but strictly executing within signed bounds.</p>
 
 <h2>4. Economic Model</h2>
 
 <h3>4.1 Token Supply</h3>
 
-<table>
-  <tr><th>Allocation</th><th>Amount</th><th>Share</th></tr>
-  <tr><td>Mining</td><td>95,000,000 SEAL</td><td>95%</td></tr>
-  <tr><td>Treasury</td><td>5,000,000 SEAL</td><td>5%</td></tr>
-  <tr><td><strong>Total</strong></td><td><strong>100,000,000 SEAL</strong></td><td><strong>100%</strong></td></tr>
-</table>
+<p>The protocol&rsquo;s native token has a fixed supply of 100,000,000 units, allocated as:</p>
 
-<p>All tokens are minted at deployment. No inflation, no minting function, no admin key.</p>
+<ul>
+  <li><strong>95%</strong> (95,000,000) to mining &mdash; distributed to trade participants over time</li>
+  <li><strong>5%</strong> (5,000,000) to treasury &mdash; for governance and ecosystem development</li>
+</ul>
+
+<p>All tokens are created at protocol deployment. There is no inflation and no mechanism to create additional supply.</p>
 
 <h3>4.2 Volume-Based Halving</h3>
 
-<p>Mining rewards decrease as cumulative trade volume grows, following a Bitcoin-style halving schedule indexed by volume rather than time.</p>
+<p>Mining rewards decrease as cumulative trade volume grows, following a halving schedule indexed by volume rather than time.</p>
 
-<p class="formula">V<sub>n</sub> = H &middot; 2<sup>n</sup> &nbsp;&nbsp;where H = $10,000</p>
-<p class="formula">A<sub>n</sub> = A<sub>0</sub> / 2<sup>n</sup> &nbsp;&nbsp;where A<sub>0</sub> = 47,500,000 SEAL</p>
+<p>Let <em>V</em> denote cumulative trade volume. Period <em>n</em> spans the volume interval (<em>V</em><sub><em>n</em>&minus;1</sub>, <em>V</em><sub><em>n</em></sub>], where:</p>
+
+<p class="formula">V<sub>n</sub> = H &middot; 2<sup>n</sup></p>
+
+<p>and <em>H</em> = $10,000 is the halving constant. The token allocation for period <em>n</em> is:</p>
+
+<p class="formula">A<sub>n</sub> = A<sub>0</sub> / 2<sup>n</sup></p>
+
+<p>where <em>A</em><sub>0</sub> = 47,500,000. The volume within period <em>n</em> is:</p>
+
+<p>&Delta;<em>V</em><sub><em>n</em></sub> = <em>H</em> for <em>n</em> = 0, and <em>H</em> &middot; 2<sup><em>n</em>&minus;1</sup> for <em>n</em> &ge; 1.</p>
+
+<p>The mining rate (tokens per dollar traded) in period <em>n</em> is:</p>
+
+<p class="formula">r<sub>n</sub> = A<sub>n</sub> / &Delta;V<sub>n</sub></p>
 
 <table>
-  <tr><th>Period</th><th>Cumulative Threshold</th><th>Allocation (SEAL)</th><th>Mining Rate (SEAL/$)</th></tr>
-  <tr><td>0</td><td>$10,000</td><td>47,500,000</td><td>4,750.00</td></tr>
-  <tr><td>1</td><td>$20,000</td><td>23,750,000</td><td>2,375.00</td></tr>
-  <tr><td>2</td><td>$40,000</td><td>11,875,000</td><td>593.75</td></tr>
-  <tr><td>3</td><td>$80,000</td><td>5,937,500</td><td>148.44</td></tr>
-  <tr><td>4</td><td>$160,000</td><td>2,968,750</td><td>37.11</td></tr>
-  <tr><td>5</td><td>$320,000</td><td>1,484,375</td><td>9.28</td></tr>
-  <tr><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td></tr>
-  <tr><td>21</td><td>~$21B</td><td>~23</td><td>~0</td></tr>
+  <tr><th>Period</th><th>Threshold</th><th>Allocation</th><th>Rate</th></tr>
+  <tr><td>0</td><td>$10K</td><td>47,500,000</td><td>4,750</td></tr>
+  <tr><td>1</td><td>$20K</td><td>23,750,000</td><td>2,375</td></tr>
+  <tr><td>2</td><td>$40K</td><td>11,875,000</td><td>593.75</td></tr>
+  <tr><td>3</td><td>$80K</td><td>5,937,500</td><td>148.44</td></tr>
 </table>
 
-<p>Total cumulative volume to fully mine: approximately $21 billion.</p>
+<p>The geometric series converges: &Sigma; <em>A</em><sub><em>n</em></sub> = <em>A</em><sub>0</sub> &middot; (1 &minus; 2<sup>&minus;22</sup>) / (1 &minus; 2<sup>&minus;1</sup>) &asymp; 95,000,000. Total cumulative volume to exhaust mining: approximately $21 billion.</p>
 
 <h3>4.3 Contribution Scoring</h3>
 
-<p>When a trade settles at value <em>d</em>, both buyer and seller receive contribution scores: <em>s</em><sub>buyer</sub> = <em>s</em><sub>seller</sub> = <em>d</em>/2. Within each period, a contributor's reward is proportional to their share of the period's total score:</p>
+<p>When a trade settles at value <em>d</em>, both buyer and seller receive equal contribution scores:</p>
+
+<p class="formula">s<sub>buyer</sub> = s<sub>seller</sub> = d / 2</p>
+
+<p>Within each period <em>n</em>, a contributor&rsquo;s reward is proportional to their share of the period&rsquo;s total score:</p>
 
 <p class="formula">R<sub>i</sub><sup>(n)</sup> = A<sub>n</sub> &middot; s<sub>i</sub><sup>(n)</sup> / &Sigma;<sub>j</sub> s<sub>j</sub><sup>(n)</sup></p>
 
-<h3>4.4 Bond Mechanism</h3>
+<p>This ensures that the full period allocation is distributed to participants.</p>
+
+<h3>4.4 Bonds</h3>
+
+<p>Bonds serve two purposes: preventing spam and providing economic recourse for counterparty harm. The bond amount at each stage is:</p>
+
+<p class="formula">B(d, stage) = clamp(d &middot; r<sub>stage</sub>, B<sub>min</sub>, B<sub>max</sub>)</p>
+
+<p>where clamp(<em>x</em>, <em>a</em>, <em>b</em>) = min(max(<em>x</em>, <em>a</em>), <em>b</em>).</p>
 
 <table>
   <tr><th>Stage</th><th>Rate</th><th>Minimum</th><th>Maximum</th></tr>
@@ -345,72 +385,80 @@ Layer 0: Settlement             (EVM smart contracts on L2)
   <tr><td>Execution</td><td>10%</td><td>$10</td><td>$50,000</td></tr>
 </table>
 
-<p>On dispute, the faulty party's bond is slashed: 50% to counterparty, 50% to insurance pool.</p>
+<p>Escalation is additive: progressing from one stage to the next requires posting only the difference, not the full amount. On dispute, the faulty party&rsquo;s bond is split equally between the counterparty and the insurance pool.</p>
 
-<h3>4.5 Fee Structure</h3>
+<h3>4.5 Fee</h3>
 
-<p>A 0.3% fee (30 basis points) is collected at settlement &mdash; 10-50x lower than traditional intermediary fees of 5-15%.</p>
+<p>A 0.3% fee is collected at settlement. The fee is paid by the buyer and deducted from the seller&rsquo;s proceeds.</p>
 
-<h2>5. Reflexive Growth Mechanism</h2>
+<h2>5. Security Analysis</h2>
 
-<p>The protocol exhibits a positive feedback loop: more trades generate more fees and mining rewards, increasing token demand, which increases the incentive to trade. Multi-vertical trust accumulation strengthens this loop &mdash; a participant's contribution score is cumulative across all trade verticals.</p>
+<h3>5.1 Enclave Breach</h3>
 
-<p>The protocol can bootstrap from a single self-trade of $70. At the Period 0 mining rate, this genesis trade mines approximately 332,500 SEAL (0.33% of supply). This is deliberately analogous to Satoshi mining block 0.</p>
+<p>The protocol&rsquo;s confidentiality depends on hardware enclave integrity. We model breach probability as:</p>
 
-<h2>6. Security Model</h2>
+<p class="formula">P(breach) = P(hardware vulnerability) &times; P(exploit within trade window) &times; P(targeted at specific trade)</p>
 
-<p>The protocol provides security through three independent layers:</p>
+<p>For current enclave technology, we estimate:</p>
 
-<p><strong>Cryptographic.</strong> EIP-712 typed signatures with domain separation prevent cross-chain replay. Signature malleability is rejected (EIP-2).</p>
+<p class="formula">P(breach) &asymp; 10<sup>&minus;3</sup> &times; 10<sup>&minus;2</sup> &times; 10<sup>&minus;2</sup> = 10<sup>&minus;7</sup> per trade</p>
 
-<p><strong>Economic.</strong> Bonds create financial incentives for honest behavior. The insurance pool provides aggregate protection against TEE breaches.</p>
+<p>The expected loss per trade is therefore:</p>
 
-<p><strong>Operational.</strong> Smart contracts enforce the state machine. CEI pattern and ReentrancyGuard eliminate reentrancy vectors. Ownable2Step prevents ownership transfer accidents.</p>
+<p class="formula">E[loss] = 10<sup>&minus;7</sup> &times; deal value</p>
 
-<h3>6.1 Limitations</h3>
+<p>For a $100,000 trade, the expected loss is $0.01. The insurance pool (funded by 50% of slashed bonds) is sized to cover aggregate expected losses across all trades.</p>
 
-<p><strong>TEE hardware trust.</strong> Confidentiality depends on vendor integrity. The insurance pool mitigates but does not eliminate this risk.</p>
+<h3>5.2 Economic Attacks</h3>
 
-<p><strong>Oracle dependency.</strong> Deal values are self-reported. Inflated values cost proportional bonds.</p>
+<p><strong>Bond griefing.</strong> An attacker could repeatedly enter trades and cancel during negotiation to trigger bond slashing. The cost of this attack is the attacker&rsquo;s own bond (3% of deal value at minimum), while the benefit is the counterparty&rsquo;s wasted time. The minimum bond ensures that even small-value griefing has non-trivial cost.</p>
 
-<p><strong>Unaudited.</strong> The implementation has not undergone professional security audit.</p>
+<p><strong>Volume inflation.</strong> A participant could report inflated deal values to mine additional tokens. The cost of this attack is the bond required at each stage (up to 10% of the stated deal value). For deal values above the maximum bond cap ($50,000), the attacker&rsquo;s bond is fixed while their mining reward scales &mdash; creating diminishing attack cost per mined token at very high stated values. This is bounded by the maximum bond caps.</p>
 
-<h2>7. Implementation</h2>
+<p><strong>Sybil mining.</strong> A participant could create multiple identities to accumulate disproportionate mining rewards. Since rewards are proportional to contribution score (which is proportional to deal value), and each deal requires real bond capital, the cost of Sybil mining equals the bond capital required &mdash; which is proportional to the deal value being mined. There is no amplification.</p>
 
-<table>
-  <tr><th>Contract</th><th>Purpose</th></tr>
-  <tr><td>SealToken</td><td>ERC-20 with fixed 100M supply</td></tr>
-  <tr><td>SealedTrade</td><td>Trade lifecycle orchestrator (EIP-712)</td></tr>
-  <tr><td>BondVault</td><td>3-stage bond escrow</td></tr>
-  <tr><td>ContributionLedger</td><td>Mining with volume-based halving</td></tr>
-  <tr><td>Treasury</td><td>Fee vault + insurance pool</td></tr>
-</table>
+<h3>5.3 Settlement Integrity</h3>
 
-<p>Test suite: 53 Solidity tests (Foundry) + 50 Python tests = 103 automated tests. Monte Carlo simulations confirm equitable reward distribution (Gini &lt; 0.2).</p>
+<p>The settlement layer enforces a strict state machine. Each transition requires:</p>
 
-<h2>8. Future Work</h2>
+<ul>
+  <li>Bond escalation from the transacting parties</li>
+  <li>Cryptographic signatures from both buyer and seller (for agreement)</li>
+  <li>Enclave attestation (for negotiation initiation and completion)</li>
+</ul>
 
-<p><strong>Agent runtime.</strong> TEE-confined LLM agent (Rust + Llama). <strong>Vertical adapters.</strong> Domain-specific parameter translation for IP licensing, real estate, M&A. <strong>Governance.</strong> Token-weighted protocol governance using the 5M SEAL treasury. <strong>Formal verification.</strong> Certora or Halmos for supply cap and reward conservation properties.</p>
+<p>No transition can bypass these requirements. The state machine is deterministic and fully specified &mdash; there are no administrative overrides or upgrade mechanisms for the core trade logic.</p>
 
-<h2>9. Conclusion</h2>
+<h2>6. Limitations</h2>
+
+<p><strong>Hardware vendor trust.</strong> The protocol&rsquo;s confidentiality guarantee depends on enclave vendor integrity. A fundamental hardware compromise &mdash; not just a software exploit &mdash; would violate the sealed negotiation property. The insurance pool mitigates but does not eliminate this risk.</p>
+
+<p><strong>Self-reported deal values.</strong> The protocol does not independently verify that stated deal values reflect actual economic reality. Bond requirements create a cost proportional to misreporting, but the maximum bond caps create a ceiling on this cost.</p>
+
+<p><strong>Single-vertical cold start.</strong> The protocol requires participants in each trade vertical. Network effects within a vertical do not transfer unless participants overlap across verticals.</p>
+
+<p><strong>Agent capability.</strong> The quality of negotiation depends on the language model&rsquo;s ability to negotiate effectively within the parameter space. Agent capability is bounded by current model limitations.</p>
+
+<h2>7. Conclusion</h2>
 
 <p>The information double-use problem in bilateral trade is analogous to the double-spending problem in digital cash. Just as Bitcoin made trustless digital payments possible by eliminating the need for a trusted third party to prevent double-spending, Sealed Trade makes trustless bilateral negotiation possible by eliminating the ability to double-use private information.</p>
 
-<p>The implementation is open-source, with 103 automated tests verifying correctness. The protocol has not been professionally audited and should not be used with real funds until an audit is completed.</p>
+<p>The protocol achieves this through hardware-confined AI agents that prevent information leakage during negotiation, cryptographic attestation of state destruction that prevents information persistence after negotiation, and bonded settlement that provides economic enforcement and dispute resolution.</p>
+
+<p>A reference implementation is available as open-source software.</p>
 
 <h2 class="references">References</h2>
 
 <div class="references">
-  <p>[1] S. Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System," 2008.</p>
-  <p>[2] R. Myerson and M. Satterthwaite, "Efficient Mechanisms for Bilateral Trading," <em>Journal of Economic Theory</em>, vol. 29, pp. 265-281, 1983.</p>
-  <p>[3] McKinsey & Company, "Global Banking Annual Review," 2023.</p>
-  <p>[4] C. Gentry, "Fully Homomorphic Encryption Using Ideal Lattices," <em>STOC</em>, 2009.</p>
-  <p>[5] Renegade, "Renegade: On-Chain Dark Pool," https://renegade.fi, 2023.</p>
-  <p>[6] Penumbra Labs, "Penumbra: A Private DEX and Shielded Pool," https://penumbra.zone, 2023.</p>
-  <p>[7] N. Stephenson, "NDAI: Non-Disclosure AI Agents," 2025.</p>
-  <p>[8] Intel Corporation, "Intel TDX Module Architecture Specification," 2023.</p>
-  <p>[9] A. Yao, "Protocols for Secure Computations," <em>FOCS</em>, 1982.</p>
-  <p>[10] R. Moraffah and B. Sankar, "Privacy-Preserving Multi-Round Negotiations," <em>IEEE Trans. IFS</em>, 2021.</p>
+  <p>[1] S. Nakamoto, &ldquo;Bitcoin: A Peer-to-Peer Electronic Cash System,&rdquo; 2008.</p>
+  <p>[2] R. Myerson and M. Satterthwaite, &ldquo;Efficient Mechanisms for Bilateral Trading,&rdquo; <em>Journal of Economic Theory</em>, vol. 29, pp. 265&ndash;281, 1983.</p>
+  <p>[3] A. Yao, &ldquo;Protocols for Secure Computations,&rdquo; <em>FOCS</em>, 1982.</p>
+  <p>[4] C. Gentry, &ldquo;Fully Homomorphic Encryption Using Ideal Lattices,&rdquo; <em>STOC</em>, 2009.</p>
+  <p>[5] Renegade, &ldquo;On-Chain Dark Pool,&rdquo; 2023.</p>
+  <p>[6] Penumbra Labs, &ldquo;A Private DEX and Shielded Pool,&rdquo; 2023.</p>
+  <p>[7] N. Stephenson, &ldquo;NDAI: Non-Disclosure AI Agents,&rdquo; 2025.</p>
+  <p>[8] Intel Corporation, &ldquo;Intel Trust Domain Extensions (TDX) Module Architecture Specification,&rdquo; 2023.</p>
+  <p>[9] R. Moraffah and B. Sankar, &ldquo;Privacy-Preserving Multi-Round Negotiations,&rdquo; <em>IEEE Transactions on Information Forensics and Security</em>, 2021.</p>
 </div>
 
 </body>
