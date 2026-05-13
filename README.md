@@ -85,15 +85,31 @@ contracts/src/
   SealedTrade.sol       Trade lifecycle + escrow (EIP-712 signatures)
   BondVault.sol         3-stage bond escrow
   Treasury.sol          Fee vault + insurance pool
+  MockUSDC.sol          Test USDC with open mint (testnet only)
+
+frontend/               Next.js demo UI (wagmi + RainbowKit)
 
 simulation/
   sealed_economics.py   Bond and fee calculations
   test_simulation.py    Unit tests
 ```
 
-## Quick Start
+## Try It (Testnet Demo)
 
-Requires: [Foundry](https://getfoundry.sh/), Python 3.10+, Git with submodule support.
+> Requires a browser wallet (MetaMask) connected to **Sepolia**.
+
+1. Visit the demo app (URL TBD after deployment)
+2. Connect your wallet and switch to Sepolia
+3. Click **"Get 10K USDC"** to mint test tokens
+4. **Seller**: List an asset with a max deal value and deadline
+5. **Buyer** (different wallet): Express interest on the listing
+6. Progress through Negotiation → Agreement → Settlement
+
+No real funds are involved — MockUSDC is used on testnet.
+
+## Quick Start (Development)
+
+Requires: [Foundry](https://getfoundry.sh/), Node.js 20+, Python 3.10+, Git with submodule support.
 
 ```bash
 git clone --recurse-submodules https://github.com/ShotaNagafuchi/sealed-trade-protocol.git
@@ -105,6 +121,9 @@ cd contracts && forge build && forge test -vvv
 # Economic simulation
 pip install -r simulation/requirements.txt
 python -m pytest simulation/test_simulation.py -v
+
+# Frontend (development server)
+cd ../frontend && npm install && npm run dev
 ```
 
 ## Security
@@ -120,10 +139,11 @@ Security hardening: CEI pattern, ReentrancyGuard, EIP-712 with malleability prot
 
 ## Status
 
-- [x] Smart contracts (settlement layer) + 51 automated tests
+- [x] Smart contracts (settlement layer) + 32 automated tests
+- [x] Frontend demo UI (Next.js + wagmi + RainbowKit)
+- [x] Testnet deployment script (Sepolia)
 - [ ] **Agent runtime — the TEE-confined negotiation engine (next milestone)**
 - [ ] Professional security audit
-- [ ] Testnet deployment
 
 ## License
 

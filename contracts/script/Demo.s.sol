@@ -5,16 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {Treasury} from "../src/Treasury.sol";
 import {BondVault} from "../src/BondVault.sol";
 import {SealedTrade} from "../src/SealedTrade.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-/// @notice Mock USDC for local testing
-contract MockUSDC is ERC20 {
-    constructor() ERC20("USD Coin", "USDC") {
-        _mint(msg.sender, 100_000_000e6); // 100M USDC
-    }
-    function decimals() public pure override returns (uint8) { return 6; }
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
-}
+import {MockUSDC} from "../src/MockUSDC.sol";
 
 /// @notice Deploy + run a full trade demo on local Anvil
 contract DemoScript is Script {
