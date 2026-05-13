@@ -2,29 +2,38 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FaucetButton } from "./FaucetButton";
 
 export function Header() {
+  const pathname = usePathname();
+
+  const navLink = (href: string, label: string) => {
+    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+    return (
+      <Link
+        href={href}
+        className={`text-sm transition-colors ${
+          isActive
+            ? "text-gray-900 font-medium"
+            : "text-gray-500 hover:text-gray-700"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   return (
-    <header className="border-b border-gray-200 px-6 py-4">
+    <header className="border-b border-gray-200 bg-white px-6 py-3.5">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-bold tracking-tight">
+          <Link href="/" className="font-bold tracking-tight text-gray-900">
             Sealed Trade
           </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link
-              href="/"
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/trade/new"
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              List Asset
-            </Link>
+          <nav className="flex gap-4">
+            {navLink("/", "Dashboard")}
+            {navLink("/trade/new", "List Asset")}
           </nav>
         </div>
         <div className="flex items-center gap-3">
