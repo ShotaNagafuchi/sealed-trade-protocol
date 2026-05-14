@@ -1,169 +1,227 @@
 # X / Twitter Thread
 
-**Audience:** crypto Twitter + AI agent Twitter overlap (large in
-2026). Receptive to narrative framing. Threads with a clear story
-arc outperform link-dumps.
+**Audience.** Crypto Twitter + AI-agent Twitter overlap (large in
+2026). Receptive to narrative framing. Standalone tweets matter —
+threads get quoted in fragments, so each tweet has to make sense
+alone.
 
-**Bitcoin framing:** allowed and effective. Lean in but keep the
-disambiguation visible.
+**Bitcoin framing.** Allowed, but every Bitcoin reference is
+paired with disambiguation in the same or next tweet.
 
-**Length:** 10–12 tweets. Each one stands alone (assume thread is
-quoted in fragments).
+**Length.** 9 tweets. Each ≤ 280 chars including link / handle if
+any.
 
-**Timing:** Tuesday or Wednesday, 09:00 ET / 14:00 UTC. Crypto and
-AI Twitter both awake.
+**Timing.** Tuesday or Wednesday, 09:00 ET / 14:00 UTC. Both
+crypto and AI-agent Twitter awake.
 
 ---
 
-## Thread
+## Lead variants
 
-**1/**
+Two openers. Pick by date.
 
-> 17 years ago today (or close enough), a paper was posted to a
-> cryptography mailing list claiming you could remove the trusted
-> intermediary from peer-to-peer payment.
+**Default (any day).** Tweet 1:
+
+> A small thing, paper-first, in the tradition.
 >
-> Today I'm posting something similar in shape — a paper that tries
-> to remove the trusted intermediary from peer-to-peer **negotiation**.
+> A protocol that tries to remove the trusted intermediary from
+> peer-to-peer **negotiation** — the same shape of claim Bitcoin
+> made for payment, one layer up, much smaller.
+>
+> Not a comparable claim. The homage is the format.
 
-*(If today isn't on or near Oct 31, drop the "17 years ago today"
-opener and rewrite to "In 2008, Satoshi posted a paper…")*
+(279 chars.)
+
+**Anniversary lead (post Oct 31 ±2 days).** Tweet 1:
+
+> 18 years ago this week, a paper was posted to a cryptography
+> mailing list claiming you could remove the trusted intermediary
+> from peer-to-peer payment.
+>
+> Today, a similarly small thing — a paper that tries to do the
+> same one layer up: negotiation.
+
+(278 chars.)
+
+---
+
+## Main thread (Tweets 2–9)
 
 **2/**
 
 > The setup is the same.
 >
 > Paper first. Code attached, but unaudited and explicitly not for
-> mainnet. No token, no airdrop, no points, no chain. Apache-2.0.
-> Solo dev.
+> mainnet. No token, no airdrop, no points, no chain.
+> Apache-2.0. Solo dev.
 >
-> This is not a comparable claim to Bitcoin. The homage is the
-> *release format* and the *thesis shape*, not the magnitude.
+> This is not a Bitcoin-comparable claim. The homage is the
+> *release format*, not the magnitude.
 
-**3/**
+(266 chars.)
 
-> The problem.
->
-> In every bilateral trade — an IP license, an M&A, a private
-> real estate deal — you have to communicate enough of your
-> private valuation to reach an agreement.
+**3/ — the problem**
+
+> In every bilateral trade — IP licensing, M&A, a private real
+> estate deal — you have to communicate enough of your private
+> valuation to reach an agreement.
 >
 > The same communication is what the counterparty uses to take
 > surplus from you.
 
-**4/**
+(247 chars.)
+
+**4/ — the mechanism of the tax**
 
 > Every first offer reveals an upper bound.
 > Every concession reveals urgency.
 > Every silence reveals patience.
 >
 > The information you share to reach a deal is reused to worsen
-> its terms.
->
-> I call this **information double-use**. It is the fundamental
-> tax on private bilateral trade.
+> its terms. I call this **information double-use**.
 
-**5/**
+(232 chars.)
 
-> When the negotiators are LLM agents, this gets *worse*, not
+**5/ — why agents make it worse, not better**
+
+> When the negotiators are LLM agents this gets *worse*, not
 > better.
 >
-> A cooperatively-tuned LLM will surface intermediate reasoning
-> that a strategic human negotiator would suppress. It will say
-> the quiet part out loud. To the *other side's* agent.
+> A cooperatively post-trained LLM will surface intermediate
+> reasoning a strategic human would suppress. It will say the
+> quiet part out loud — to the other side's agent.
 
-**6/**
+(244 chars.)
 
-> The protocol: put both agents inside the same hardware-isolated
-> enclave (Intel TDX, AMD SEV-SNP).
+**6/ — the move**
+
+> Put both agents into the same hardware-isolated enclave (Intel
+> TDX, AMD SEV-SNP).
 >
-> Each agent is bound by signed parameters from its principal —
-> an envelope it cannot commit outside of.
+> Each is bound by signed parameters from its principal — an
+> envelope it cannot commit outside of.
 >
-> Negotiation happens A2A. Only the outcome leaves.
+> A2A negotiation runs inside. Only the outcome leaves. Memory
+> destroyed.
 
-**7/**
+(265 chars.)
+
+**7/ — what nobody gets afterward**
 
 > Neither party can observe the negotiation.
-> Neither party can subpoena the transcript later.
-> The intermediate offers, hesitations, concessions —
+> Neither party can subpoena the transcript.
+> The intermediate offers, hesitations, concession patterns —
 > the stuff experienced negotiators exploit —
 > never become information either side controls.
->
-> Memory is destroyed when the enclave terminates.
 
-**8/**
+(264 chars.)
+
+**8/ — why not the obvious alternatives**
 
 > Why not MPC? Can't host an open-ended LLM negotiation as a
 > circuit.
 > Why not FHE? Orders of magnitude too slow for LLM inference.
 > Why not ZKP? Proves correctness, can't seal arbitrary content.
-> Why not a trusted broker? The broker is now the leak.
->
-> TEE is the only path with current hardware.
+> Why not a trusted broker? The broker becomes the leak.
 
-**9/**
+(266 chars.)
 
-> TEE is not trustless. We swap mathematical hardness for
-> hardware-vendor trust + supply-chain assumptions. Foreshadow,
-> ÆPIC, CacheOut are all in the paper's limitations section.
->
-> The protocol bounds the economic consequence with an insurance
-> pool funded by fees and slashed bonds. Not the same as
-> preventing breach.
+**9/ — the honest trade**
 
-**10/**
+> TEE isn't trustless. We swap mathematical hardness for hardware-
+> vendor + supply-chain trust. Foreshadow, ÆPIC, CacheOut are in
+> the paper's limitations section.
+>
+> An insurance pool bounds the *economic* consequence of breach.
+> Not the same as preventing it.
 
-> What's actually built right now:
->
-> – Solidity settlement layer. 51 tests passing.
-> – Economic simulation in Python.
-> – Demo: full trade lifecycle on local Anvil.
-> – Paper, EN + JA.
->
-> What's NOT built:
->
-> – The TEE-confined agent runtime. Next milestone. Honestly the
->   harder half.
-
-**11/**
-
-> Why publish before the runtime is built?
->
-> Because the design is the part that benefits from being reviewed
-> early. The substrate exists. The substrate should be torn apart
-> by smart people before the runtime is built against it.
->
-> Paper first. Code soon. Mainnet only after an audit, period.
-
-**12/**
-
-> Paper: [link]
-> Code: [github link]
->
-> If you build agents that negotiate, I want to hear how they fail.
-> If you work on TEE, I want to hear what the paper gets wrong
-> about attestation.
->
-> No followers needed, no airdrop coming. Just feedback.
+(271 chars.)
 
 ---
 
-## Variants per platform
+## Closer (Tweets 10–11)
 
-**Farcaster:** post the same thread. Replace the Oct 31 opener
-with "A small thing, paper-first, in the tradition" if not on/near
-that date.
+Two variants for the closer. Pick one.
 
-**Lens:** same.
+**Closer A — review-seeking (preferred for the launch):**
 
-**Substack / Mirror essay:** expand the thread to ~1500 words with
-the same arc. Add the comparison table from the paper. Add the
-"things this protocol does NOT do" section verbatim.
+> What is in the repo right now: settlement contracts (51 tests,
+> Anvil demo), the paper EN+JA, the economic model.
+>
+> The TEE agent runtime is in active development, not in this
+> commit. We wanted the design reviewed before building against
+> an unreviewed spec.
+
+(263 chars.)
+
+> If you build agents that negotiate, I want to hear how they
+> fail.
+> If you work on TEE, tell me what the paper gets wrong about
+> attestation.
+>
+> No followers needed, no airdrop coming. Just feedback.
+>
+> Paper: [link]
+> Code: [github link]
+
+(241 chars.)
+
+**Closer B — short version (use if cutting the thread to 9 tweets total):**
+
+> What's in the repo: settlement contracts (51 tests, Anvil demo),
+> paper EN+JA, economic model. TEE agent runtime in active
+> development.
+>
+> Paper: [link]
+> Code: [github]
+>
+> Reviewers and contributors welcome. No token. No followers
+> needed. Just feedback.
+
+(263 chars.)
+
+---
+
+## Posting mechanics
+
+- Each tweet stands alone — they will be quoted out of context.
+- Don't include the GitHub link until tweet 10/11. The link sucks
+  algorithmic reach out of the lead.
+- Reply to your own thread with the link in tweet 11 instead of
+  putting it inline.
+- Quote the lead tweet ~6 hours later with one new line of
+  framing (a "by the way" tweet) to surface it to a second
+  timezone. Don't reply to the lead — quote it.
+- Do not engage with engagement-farm replies ("wen token"). Mute
+  them.
+- If a known TEE / agent / crypto account engages substantively,
+  reply within 30 minutes for the first 4 hours.
+
+## Quote-tweet seed (for sharing the thread later)
+
+After the thread lands, write a separate single tweet that can be
+quote-tweeted by friends without amplifying the "Bitcoin homage"
+frame to skeptical audiences:
+
+> Open-source A2A negotiation protocol with on-chain bonded
+> settlement. Confines LLM-to-LLM negotiation to a hardware
+> enclave so neither party can reconstruct the other's reservation
+> price from the transcript.
+>
+> Paper, code, no token.
+> [link]
+
+(278 chars.) This is the "no Bitcoin reference" version that
+researchers can RT without endorsing the narrative angle.
+
+---
 
 ## Things to avoid
 
-- ❌ "Next Bitcoin" as a phrase without immediate disambiguation
-- ❌ Replying to engagement-farming "wen token" replies
-- ❌ Quote-tweeting people who frame this as a price-relevant event
-- ❌ Posting price-related charts of any asset
+- ❌ Bitcoin price chart or any chart at all
+- ❌ "Next Bitcoin" as a phrase, ever, even ironically — it will
+  be screenshotted without the disambiguation tweet
+- ❌ Quote-tweeting price commentary
+- ❌ Engaging with "wen token" / "wen mainnet" replies
+- ❌ Posting during obvious news / market events that will eat the
+  algorithm budget

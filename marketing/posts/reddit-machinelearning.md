@@ -7,142 +7,226 @@ threshold may apply.
 
 **Bitcoin framing:** absent. Academic sub. Reads as crank.
 
-**Flair:** `[R]` (we have a paper) is the right tag. `[P]` works
-too if you want to lead with the implementation.
+**Flair:** `[R]` (we have a paper) is the right tag.
+
+**Timing:** Tuesday or Wednesday, weekdays 09:00–14:00 ET. Avoid
+conference weeks (NeurIPS, ICML, ICLR).
 
 ---
 
-## Title
+## Title (≤300 chars; aim for ~120)
+
+Primary:
 
 ```
-[R] Sealed Trade Protocol: confidential negotiation between LLM agents via TEE
-isolation — addressing the information double-use problem in bilateral trade
+[R] Information double-use in bilateral negotiation between LLM agents:
+a TEE-isolated protocol and reference settlement layer
 ```
 
-Alternate (more academic):
+Alternates:
 
 ```
-[R] Information double-use in bilateral negotiation between language-model
-agents: a hardware-isolated protocol and reference implementation
+[R] Sealing the negotiation channel between two LLM agents: a hardware-isolation
+approach to the information double-use problem in bilateral trade
+
+[R] When two agents negotiate, both leak — a TEE-confined A2A protocol for
+bilateral trade with on-chain bonded settlement
 ```
+
+Prefer the primary. It names the problem ("information double-use"),
+the method (TEE), and the artifact (protocol + reference impl) in
+one line.
 
 ---
 
 ## Body
 
-> **Paper:** [link to PAPER.md or arXiv]
-> **Code:** [github link]
-> **License:** Apache-2.0
+> **Paper.** [link to PAPER.md or arXiv preprint]
+> **Code.** [github link] · Apache-2.0
 >
-> **Problem statement.** When two parties negotiate a bilateral
-> deal — an IP license, an acquisition, a real estate transaction —
-> private valuations must be partially communicated to reach
-> agreement (Myerson & Satterthwaite, 1983). But the same
-> communication is exploited by the counterparty to extract
+> ### Problem
+>
+> In bilateral trade — IP licensing, M&A, private real estate —
+> private valuations must be partially communicated to reach an
+> agreement (Myerson & Satterthwaite, 1983 [1]). The same
+> communication is then exploited by the counterparty to extract
 > surplus. We call this *information double-use*: information
 > shared to reach a deal is reused to worsen its terms.
 >
 > When the negotiators are LLM agents acting on behalf of human
-> principals, this problem becomes worse, not better. LLMs trained
-> on cooperative dialogue will surface intermediate reasoning that
-> a strategic human negotiator would suppress. The signal-to-noise
-> in each exchange is much higher.
+> principals, the problem intensifies. Models post-trained for
+> cooperative dialogue tend to surface intermediate reasoning that
+> a strategic human would suppress. Per-message information leakage
+> rises, even when the final commit is bounded by structured
+> output.
 >
-> **Approach.** We confine the agent-to-agent negotiation to a
-> hardware-isolated enclave (Intel TDX / AMD SEV-SNP). Each agent
-> is bound by cryptographically signed parameters from its
-> principal — an upper bound on what it can commit to. Inter-agent
-> messages are A2A-protocol-shaped but never leave the enclave.
-> Only the final outcome (agreement or no-deal) is published, and
-> enclave memory is destroyed.
+> ### Approach
 >
-> We are not circumventing Myerson–Satterthwaite. The strategic
-> tension simply moves from negotiation-time to parameter-setting-
-> time. A principal who signs a maximum below their true reserve is
-> shading their parameters, just as a negotiator might shade an
-> opening offer. We claim the protocol reduces leakage *during the
-> negotiation process*, not that it produces ex-post efficiency.
+> We confine the agent-to-agent negotiation to a hardware-isolated
+> enclave (Intel TDX, AMD SEV-SNP). Each agent is bound by
+> cryptographically signed parameters from its principal — an
+> upper bound on the commitments it can make. Inter-agent messages
+> are A2A-protocol-shaped [2] but never leave the enclave. Only
+> the final outcome — agreement or no-deal — is published, and
+> enclave memory is destroyed on termination.
 >
-> **Why not the obvious alternatives?**
+> We do **not** circumvent Myerson–Satterthwaite. The strategic
+> tension simply relocates from negotiation-time to parameter-
+> setting-time. A principal who signs a maximum below their true
+> reserve is shading their parameters, just as a negotiator might
+> shade an opening offer. The claim is narrower: the protocol
+> reduces leakage *during the negotiation process itself*, where
+> intermediate offers, response timing, and concession patterns
+> ordinarily produce extractable signal.
 >
-> | Approach        | Why it doesn't apply here                           |
-> |-----------------|-----------------------------------------------------|
-> | MPC             | Requires the computation as a circuit; precludes    |
-> |                 | open-ended natural-language negotiation             |
-> | FHE             | Several orders of magnitude too slow for LLM        |
-> |                 | inference at interactive latency                    |
-> | ZKP             | Proves correctness of computation, but cannot seal  |
-> |                 | the *content* of an arbitrary LLM rollout           |
-> | Trusted broker  | No technical enforcement of confidentiality;        |
-> |                 | reverts the problem one layer up                    |
+> ### Comparison vs. alternative confidentiality roots
 >
-> TEE swaps mathematical-hardness assumptions for hardware-vendor
-> trust + supply-chain assumptions. We're explicit about this in §3.3
-> and §5.1 of the paper. Foreshadow / ÆPIC / CacheOut history is
-> acknowledged. An insurance pool funded by protocol fees bounds the
-> economic consequence of breach, which is not the same as
-> preventing it.
+> | Approach           | Confidentiality root            | Open-ended LLM negotiation? | Interactive latency? | Attestability of model identity? |
+> |--------------------|----------------------------------|----------------------------:|--------------------:|--------------------------------:|
+> | MPC [3]            | Mathematical (information-theoretic / cryptographic) | No — requires fixed circuit |       No (for LLMs) |                              No |
+> | FHE [4]            | Mathematical (LWE)               |              Yes in principle |       No (orders of magnitude too slow) |                              No |
+> | ZKP                | Mathematical                     | Verifies correctness, not content |   N/A |                              No |
+> | Trusted broker     | Institutional                    |                          Yes |                 Yes |                              No |
+> | **TEE (this work)**| Hardware + supply chain          |                          Yes |                 Yes |  Yes, via remote attestation    |
 >
-> **What's implemented.**
+> The honest read: TEE swaps mathematical-hardness assumptions for
+> hardware-vendor and supply-chain trust. Foreshadow, ÆPIC Leak,
+> and CacheOut are acknowledged in §5.1 of the paper. The protocol
+> bounds the *economic* consequence of breach via an insurance pool
+> funded by fees and slashed bonds — that is a bound on damage, not
+> a prevention of breach.
 >
-> - Settlement layer: Solidity contracts (escrow + 3-stage bonded
->   commitments + insurance pool accounting). 51 unit tests.
-> - Economic simulation in Python (bond schedules, fee model).
-> - Demo script: end-to-end trade lifecycle on local Anvil.
+> ### Most-comparable recent work
 >
-> **What's not.**
+> *Omega* (Yang et al., arXiv 2605.03213) [5] is the closest
+> system in the literature: a confidential agent runtime on
+> AMD SEV-SNP + NVIDIA CC, with attestation-gated tool calls and a
+> declarative policy language at the TEE boundary. We see the work
+> as complementary: Omega secures intra-agent execution and tool
+> invocation; this protocol focuses on the inter-agent negotiation
+> channel and the on-chain settlement substrate. The two could
+> compose.
 >
-> - The TEE-confined agent runtime. This is the next milestone
->   and the harder half. We chose to publish the design + settlement
->   substrate first to get critique before building the runtime.
+> Dark pool prior work (Renegade [6], Penumbra [7]) addresses
+> information leakage for fungible-asset swaps; bilateral trade
+> involves non-fungible, multi-attribute negotiation that price-
+> matching doesn't capture.
 >
-> **What we'd value feedback on.**
+> ### What is in the released repo
 >
-> 1. The reduction of negotiation leakage versus parameter-setting
->    leakage. Is the *Layer 1 vs. Layer 2* decomposition (§1.2,
->    §2.2) defensible? Where does it leak?
-> 2. The action-space constraint enforcement. The signed parameters
->    bound the agent's commitment power but not its internal
->    reasoning. What's the minimum mechanism (logit masking,
->    constrained decoding, structured-output-only) that you'd
->    consider sufficient?
-> 3. The related-work table. We cite Renegade and Penumbra for
->    fungible dark-pool prior work, and Omega (arXiv 2605.03213)
->    for the most comparable TEE-based agent runtime. What are we
->    missing?
+> - **Settlement layer.** Solidity contracts: trade-lifecycle
+>   state machine, 3-stage bonded escrow, fee + insurance-pool
+>   accounting, EIP-712 typed signatures with s-malleability
+>   protection. 51 unit tests passing, full-lifecycle Anvil demo.
+> - **Economic model.** Python simulation of the bond schedule
+>   and fee math with unit tests.
+> - **Paper.** EN + JA, ~14 pages each, with the full related-work
+>   review and limitations section.
+>
+> ### What is in active development, not in this commit
+>
+> - The TEE-confined agent runtime — the negotiator process itself
+>   and the attestation verification path. We chose to publish the
+>   design + settlement substrate first to get the protocol design
+>   reviewed before building the runtime against an unreviewed
+>   spec. The substrate exposes the plug-in points the runtime
+>   will use (signed parameters, attestation hash slot, state
+>   transition gates).
+>
+> ### Feedback we are actively soliciting
+>
+> 1. **Layer 1 / Layer 2 decomposition (§1.2, §2.2).** The
+>    protocol targets *Layer 2* (negotiation leakage), explicitly
+>    not *Layer 1* (discovery leakage) or *Layer 3* (post-
+>    settlement persistence). Is this decomposition defensible, or
+>    are there leakage channels we've mis-partitioned?
+> 2. **Action-space enforcement.** Signed parameters bound the
+>    *commitment power* of the agent but not its *reasoning trace*.
+>    What is the minimum mechanism — logit masking, constrained
+>    decoding, structured-output-only, function-call-only — that
+>    would meaningfully reduce the reasoning-trace channel?
+> 3. **Attestation of model identity, not just enclave identity.**
+>    Has anyone here actually shipped a workflow where the
+>    counterparty verifies the deployed model's weight hash via
+>    the enclave attestation? We discuss this as future work in §6
+>    but want pointers to existing implementations.
+> 4. **Equilibrium analysis under parameter shading.** Once the
+>    strategic tension moves to parameter-setting, the equilibrium
+>    of the two-stage game (sign parameters → run sealed
+>    negotiation) is the right object to study. We have informal
+>    arguments only — pointers to formal work appreciated.
+>
+> ### References (paper §References)
+>
+> [1] Myerson & Satterthwaite, JET 1983.
+> [2] A2A Protocol, Linux Foundation, 2025.
+> [3] Goldreich, Micali & Wigderson, STOC 1987.
+> [4] Gentry, STOC 2009.
+> [5] Yang et al., *Omega*, arXiv 2605.03213.
+> [6] Renegade, "On-Chain Dark Pool," 2023.
+> [7] Penumbra Labs, "A Private DEX and Shielded Pool," 2023.
 
 ---
 
-## Anticipated comments
+## Anticipated comments & pre-prepared replies
 
 **"This is just MPC dressed up as TEE."**
 
-> No. MPC requires the computation to be expressed as a circuit
-> ahead of time. Open-ended LLM negotiation cannot be expressed as
-> a fixed circuit. TEE makes a different tradeoff: it accepts a
-> hardware trust root in exchange for arbitrary-computation
-> support.
+> The fundamental difference is the computation model. MPC
+> requires the function to be expressible as a circuit known to
+> both parties in advance, and open-ended natural-language
+> negotiation between two LLMs is not a circuit you can specify
+> ahead of time. TEE accepts a strictly weaker confidentiality
+> root (hardware trust) in exchange for arbitrary-computation
+> support. Both are defensible engineering tradeoffs; they're not
+> the same thing.
 
-**"You're not solving the impossibility result."**
+**"You haven't solved the impossibility result."**
 
-> Explicit acknowledgment in §1, §1.2, and §6. We are not. We are
-> reducing leakage of a specific class of information (intermediate
-> negotiation dynamics) at the cost of moving strategic tension to
-> the parameter-setting stage.
+> Explicit, repeatedly, in §1, §1.2, §6. We are not. The claim is
+> that *negotiation-time* leakage of intermediate signals
+> (concession timing, anchoring, response latency, partial offer
+> dynamics) is the leakage class that experienced negotiators
+> exploit most heavily, and that this class is the one the
+> protocol seals — at the cost of moving the strategic surface to
+> the parameter-setting stage, where the impossibility applies
+> with the same force.
 
-**"Why is this a paper and not a blog post?"**
+**"Why is the settlement on-chain at all?"**
 
-> Fair. The paper format is deliberate — we want the protocol
-> design reviewed against the prior art carefully before the agent
-> runtime is built. The release order is paper-first, code-second,
-> deployment-last.
+> Because agent-to-agent settlement needs a programmable,
+> permissionless rail with sub-second finality and atomic bundle
+> semantics (deal value + bond release in one transaction).
+> Traditional payment systems require human approval and don't
+> give you atomic settlement. We acknowledge the choice introduces
+> on-chain leakage (bond size reveals deal scale, §6) and treat
+> that as a residual leakage channel, not a solved problem.
+
+**"Why publish before the runtime is built?"**
+
+> Because the protocol design is the artifact that benefits most
+> from being reviewed early. The settlement substrate exists,
+> works, and exposes the plug-in points the runtime will need.
+> Building the runtime against an unreviewed spec is the higher-
+> risk ordering.
+
+**"Hardware-vendor trust is fundamentally weaker than mathematical hardness."**
+
+> Yes. The paper says this in §3.3 and §5.1. We argue the relevant
+> alternative for *this specific problem* (open-ended LLM-to-LLM
+> negotiation at interactive latency) is not MPC or FHE — those
+> don't apply — but a *trusted broker*, which is strictly worse
+> on the confidentiality axis because the broker becomes the leak.
+> Conditional on accepting that frame, hardware trust is a
+> meaningful improvement; outside that frame it's a step back.
 
 ---
 
-## Things to avoid on this sub
+## What NOT to write
 
-- ❌ Crypto framing in the lead
-- ❌ Marketing language
-- ❌ Anything that looks like a Show HN body pasted over
-- ❌ Token / chain / settlement-layer framing as the *main* hook
-  (mention it but don't lead with it)
+- ❌ Anything that reads as a launch announcement
+- ❌ Bitcoin reference (instant credibility kill on this sub)
+- ❌ Token / chain framing as the lead
+- ❌ Performance claims unsupported by measurement
+- ❌ "Revolutionary" / "first-ever" / "next-generation"
+- ❌ Excessive formatting (no emojis, minimal bold)
