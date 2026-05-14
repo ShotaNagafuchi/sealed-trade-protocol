@@ -12,6 +12,10 @@ import { parseUnits, keccak256, toBytes, encodePacked, formatUnits } from "viem"
 import { Trade } from "@/hooks/useTrade";
 import { CONTRACTS, ACTIVE_CHAIN } from "@/lib/config";
 import { TradeState, USDC_DECIMALS, BondStage } from "@/lib/constants";
+import { useNegotiation } from "@/hooks/useNegotiation";
+import { AgentConfigPanel } from "./AgentConfigPanel";
+import { NegotiationChat } from "./NegotiationChat";
+import { AgreementPrompt } from "./AgreementPrompt";
 import SealedTradeABI from "@/lib/abi/SealedTrade.json";
 import BondVaultABI from "@/lib/abi/BondVault.json";
 import MockUSDCABI from "@/lib/abi/MockUSDC.json";
@@ -31,6 +35,13 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
 
   const [finalValue, setFinalValue] = useState("");
   const [terms, setTerms] = useState("");
+  const [negotiationMode, setNegotiationMode] = useState<"manual" | "agent">("agent");
+
+  const negotiation = useNegotiation({
+    tradeId: trade.tradeId,
+    maxDealValue: Number(formatUnits(trade.maxDealValue, USDC_DECIMALS)),
+    deadline: new Date(Number(trade.deadline) * 1000).toISOString(),
+  });
 
   const isSeller = address?.toLowerCase() === trade.seller.toLowerCase();
   const isBuyer = address?.toLowerCase() === trade.buyer.toLowerCase();
@@ -128,9 +139,10 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
     );
   }
 
-  // --- Negotiating: commit agreement with EIP-712 signatures ---
+  // --- Negotiating: manual or AI agent ---
   if (trade.state === TradeState.Negotiating && isParty) {
     const storageKey = `sig-${trade.tradeId}`;
+    const myRole = isSeller ? "seller" as const : "buyer" as const;
 
     const handleSign = async () => {
       if (!finalValue || !terms) return;
@@ -160,7 +172,6 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
         },
       });
 
-      // Store signature in localStorage
       const stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
       stored[isBuyer ? "buyerSig" : "sellerSig"] = signature;
       stored.finalDealValue = finalDealValue.toString();
@@ -199,50 +210,152 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
     );
 
     return (
-      <div className="space-y-3">
-        <h3 className="font-semibold">Commit Agreement</h3>
-        <p className="text-sm text-gray-500">
-          Both parties must sign. Bonds escalate to 10%.
-        </p>
-        <div className="space-y-2">
-          <input
-            type="number"
-            placeholder="Final deal value (USD)"
-            value={finalValue || stored.finalDealValue ? formatUnits(BigInt(stored.finalDealValue || "0"), USDC_DECIMALS) : ""}
-            onChange={(e) => setFinalValue(e.target.value)}
-            className="input"
-          />
-          <input
-            type="text"
-            placeholder="Terms (e.g., non-exclusive, 5 years)"
-            value={terms || stored.terms || ""}
-            onChange={(e) => setTerms(e.target.value)}
-            className="input"
-          />
-        </div>
-        <div className="flex gap-2">
+      <div className="space-y-4">
+        {/* Mode tabs */}
+        <div className="flex border-b border-gray-200">
           <button
-            onClick={() => approve(bondVaultAddr, trade.maxDealValue)}
-            disabled={busy}
-            className="btn-secondary"
+            onClick={() => setNegotiationMode("agent")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              negotiationMode === "agent"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
           >
-            Approve
-          </button>
-          <button onClick={handleSign} className="btn-secondary">
-            Sign Agreement
+            AI Agent
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={busy}
-            className="btn-primary"
+            onClick={() => setNegotiationMode("manual")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              negotiationMode === "manual"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
           >
-            Submit (Both Sigs)
+            Manual
           </button>
         </div>
-        <div className="text-xs text-gray-400 space-y-0.5">
-          <div>Buyer sig: {stored.buyerSig ? "Ready" : "Pending"}</div>
-          <div>Seller sig: {stored.sellerSig ? "Ready" : "Pending"}</div>
-        </div>
+
+        {negotiationMode === "agent" ? (
+          <div className="space-y-4">
+            {negotiation.status === "idle" && (
+              <AgentConfigPanel
+                role={myRole}
+                maxDealValue={Number(formatUnits(trade.maxDealValue, USDC_DECIMALS))}
+                onStart={(apiKey, config) =>
+                  negotiation.startNegotiation(apiKey, config)
+                }
+              />
+            )}
+
+            {negotiation.status === "running" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Negotiation in Progress</h3>
+                  <button
+                    onClick={negotiation.stopNegotiation}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Stop
+                  </button>
+                </div>
+                <NegotiationChat
+                  messages={negotiation.messages}
+                  currentRole={myRole}
+                  isThinking={negotiation.isThinking}
+                />
+              </div>
+            )}
+
+            {negotiation.status === "agreed" && negotiation.agreement && (
+              <AgreementPrompt
+                agreement={negotiation.agreement}
+                trade={trade}
+                onSuccess={onSuccess}
+              />
+            )}
+
+            {negotiation.status === "failed" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-700 font-medium">
+                  Negotiation failed
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  {negotiation.error}
+                </p>
+                <button
+                  onClick={negotiation.stopNegotiation}
+                  className="btn-secondary mt-3"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {negotiation.status === "timeout" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm text-amber-700 font-medium">
+                  Negotiation timed out
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Maximum rounds reached without agreement.
+                </p>
+                <button
+                  onClick={negotiation.stopNegotiation}
+                  className="btn-secondary mt-3"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Manual mode — existing UI */
+          <div className="space-y-3">
+            <h3 className="font-semibold">Commit Agreement</h3>
+            <p className="text-sm text-gray-500">
+              Both parties must sign. Bonds escalate to 10%.
+            </p>
+            <div className="space-y-2">
+              <input
+                type="number"
+                placeholder="Final deal value (USD)"
+                value={finalValue || stored.finalDealValue ? formatUnits(BigInt(stored.finalDealValue || "0"), USDC_DECIMALS) : ""}
+                onChange={(e) => setFinalValue(e.target.value)}
+                className="input"
+              />
+              <input
+                type="text"
+                placeholder="Terms (e.g., non-exclusive, 5 years)"
+                value={terms || stored.terms || ""}
+                onChange={(e) => setTerms(e.target.value)}
+                className="input"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => approve(bondVaultAddr, trade.maxDealValue)}
+                disabled={busy}
+                className="btn-secondary"
+              >
+                Approve
+              </button>
+              <button onClick={handleSign} className="btn-secondary">
+                Sign Agreement
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={busy}
+                className="btn-primary"
+              >
+                Submit (Both Sigs)
+              </button>
+            </div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              <div>Buyer sig: {stored.buyerSig ? "Ready" : "Pending"}</div>
+              <div>Seller sig: {stored.sellerSig ? "Ready" : "Pending"}</div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
