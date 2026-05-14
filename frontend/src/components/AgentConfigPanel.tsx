@@ -31,7 +31,7 @@ export function AgentConfigPanel({
   onStart,
 }: AgentConfigPanelProps) {
   const [apiKey, setApiKey] = useState(
-    () => (typeof window !== "undefined" ? localStorage.getItem("claude-api-key") : "") ?? ""
+    () => (typeof window !== "undefined" ? sessionStorage.getItem("claude-api-key") : "") ?? ""
   );
   const [configText, setConfigText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function AgentConfigPanel({
     config.role = role;
 
     // Save API key to localStorage
-    localStorage.setItem("claude-api-key", apiKey);
+    sessionStorage.setItem("claude-api-key", apiKey);
 
     onStart(apiKey, config);
   };
