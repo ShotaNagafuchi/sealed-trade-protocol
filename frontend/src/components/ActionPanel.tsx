@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useAccount,
   useWriteContract,
@@ -16,6 +16,7 @@ import { useNegotiation } from "@/hooks/useNegotiation";
 import { AgentConfigPanel } from "./AgentConfigPanel";
 import { NegotiationChat } from "./NegotiationChat";
 import { AgreementPrompt } from "./AgreementPrompt";
+import { loadAgentSetup, saveAgentSetup } from "@/lib/agentStorage";
 import SealedTradeABI from "@/lib/abi/SealedTrade.json";
 import BondVaultABI from "@/lib/abi/BondVault.json";
 import MockUSDCABI from "@/lib/abi/MockUSDC.json";
@@ -66,36 +67,51 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
     });
   };
 
-  // --- Listed: buyer can express interest ---
+  // --- Listed: buyer can express interest + configure agent ---
   if (trade.state === TradeState.Listed && !isSeller) {
     return (
-      <div className="space-y-3">
-        <h3 className="font-semibold">Express Interest</h3>
-        <p className="text-sm text-gray-500">
-          Post a discovery bond (1% of deal value) to signal interest.
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => approve(bondVaultAddr, trade.maxDealValue)}
-            disabled={busy}
-            className="btn-secondary"
-          >
-            1. Approve USDC
-          </button>
-          <button
-            onClick={() =>
-              writeContract({
-                address: sealedTradeAddr,
-                abi: SealedTradeABI,
-                functionName: "expressInterest",
-                args: [trade.tradeId],
-              })
+      <div className="space-y-4">
+        <div className="space-y-3">
+          <h3 className="font-semibold">Express Interest</h3>
+          <p className="text-sm text-gray-500">
+            Post a discovery bond (1% of deal value) to signal interest.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => approve(bondVaultAddr, trade.maxDealValue)}
+              disabled={busy}
+              className="btn-secondary"
+            >
+              1. Approve USDC
+            </button>
+            <button
+              onClick={() =>
+                writeContract({
+                  address: sealedTradeAddr,
+                  abi: SealedTradeABI,
+                  functionName: "expressInterest",
+                  args: [trade.tradeId],
+                })
+              }
+              disabled={busy}
+              className="btn-primary"
+            >
+              2. Express Interest
+            </button>
+          </div>
+        </div>
+
+        {/* Pre-configure buyer agent */}
+        <div className="border-t border-gray-200 pt-4">
+          <AgentConfigPanel
+            role="buyer"
+            maxDealValue={Number(formatUnits(trade.maxDealValue, USDC_DECIMALS))}
+            mode="save"
+            compact
+            onSave={(apiKey, config) =>
+              saveAgentSetup(trade.tradeId, "buyer", apiKey, config)
             }
-            disabled={busy}
-            className="btn-primary"
-          >
-            2. Express Interest
-          </button>
+          />
         </div>
       </div>
     );
@@ -139,10 +155,29 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
     );
   }
 
-  // --- Negotiating: manual or AI agent ---
+  // --- Negotiating: auto-start agent if pre-configured ---
+  const myRole = isSeller ? "seller" as const : "buyer" as const;
+  const autoStartKey = `agent-autostarted-${trade.tradeId}-${myRole}`;
+
+  useEffect(() => {
+    if (
+      trade.state === TradeState.Negotiating &&
+      isParty &&
+      negotiation.status === "idle"
+    ) {
+      // Check persistent flag to prevent duplicate auto-starts across refreshes
+      if (typeof window !== "undefined" && sessionStorage.getItem(autoStartKey)) return;
+
+      const setup = loadAgentSetup(trade.tradeId, myRole);
+      if (setup) {
+        sessionStorage.setItem(autoStartKey, "1");
+        negotiation.startNegotiation(setup.apiKey, setup.config);
+      }
+    }
+  }, [trade.state, isParty, negotiation.status, trade.tradeId, myRole, autoStartKey]);
+
   if (trade.state === TradeState.Negotiating && isParty) {
     const storageKey = `sig-${trade.tradeId}`;
-    const myRole = isSeller ? "seller" as const : "buyer" as const;
 
     const handleSign = async () => {
       if (!finalValue || !terms) return;
@@ -283,7 +318,10 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
                   {negotiation.error}
                 </p>
                 <button
-                  onClick={negotiation.stopNegotiation}
+                  onClick={() => {
+                    sessionStorage.removeItem(autoStartKey);
+                    negotiation.stopNegotiation();
+                  }}
                   className="btn-secondary mt-3"
                 >
                   Try Again
@@ -300,7 +338,10 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
                   Maximum rounds reached without agreement.
                 </p>
                 <button
-                  onClick={negotiation.stopNegotiation}
+                  onClick={() => {
+                    sessionStorage.removeItem(autoStartKey);
+                    negotiation.stopNegotiation();
+                  }}
                   className="btn-secondary mt-3"
                 >
                   Try Again

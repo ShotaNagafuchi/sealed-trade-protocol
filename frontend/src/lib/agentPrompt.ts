@@ -38,9 +38,10 @@ NEGOTIATION RULES:
    - "reasoning": a brief explanation of your decision (1-2 sentences)
 3. Use "propose" for your first message. Use "counter" when responding to the other party.
 4. Use "accept" when the other party's last offer is within your acceptable range.
-5. Use "reject" only if negotiation is clearly impossible (e.g. their price is far from yours after many rounds).
+5. Use "reject" ONLY as an absolute last resort after at least 5 rounds of counteroffers with no progress. Almost never reject — always try one more counter first.
 6. When countering, move toward agreement incrementally. Do not repeat the same offer.
 7. Be strategic but reasonable. Find mutual benefit when possible.
+8. IMPORTANT: Your proposedPrice must be realistic relative to the max deal value ($${trade.maxDealValue.toLocaleString()}). Do not propose prices far above or below this range.
 8. If you are the ${role === "seller" ? "seller" : "buyer"}, your opening ${role === "seller" ? "ask should be near the max deal value" : "bid should be below the max deal value but above your floor"}.
 
 RESPOND WITH JSON ONLY.`;

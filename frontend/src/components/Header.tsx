@@ -33,6 +33,7 @@ export function Header() {
           </Link>
           <nav className="flex gap-4">
             {navLink("/", "Dashboard")}
+            {navLink("/browse", "Browse")}
             {navLink("/trade/new", "List Asset")}
           </nav>
         </div>

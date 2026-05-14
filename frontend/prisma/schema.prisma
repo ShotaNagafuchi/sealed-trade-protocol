@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Listing {
+  id            String        @id @default(cuid())
+  tradeId       String        @unique
+  assetHash     String
+  sellerAddress String
+  title         String        @db.VarChar(200)
+  description   String        @db.Text
+  category      Category
+  tags          String[]      @default([])
+  maxDealValue  BigInt
+  deadline      DateTime
+  status        ListingStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([sellerAddress])
+  @@index([createdAt])
+}
+
+enum Category {
+  REAL_ESTATE
+  PATENT_IP
+  EQUITY_STOCK
+  COMMODITY
+  DIGITAL_ASSET
+  OTHER
+}
+
+enum ListingStatus {
+  ACTIVE
+  MATCHED
+  SETTLED
+  CANCELLED
+  EXPIRED
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  walletAddress String
+  keyHash       String    @unique
+  label         String    @db.VarChar(100)
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  revokedAt     DateTime?
+
+  @@index([walletAddress])
+}

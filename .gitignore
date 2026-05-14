@@ -28,6 +28,10 @@ node_modules/
 .env
 .env.local
 .env.*.local
+frontend/.env
+
+# Prisma generated
+frontend/src/generated/
 
 # OS
 .DS_Store

@@ -6,7 +6,14 @@ import type { AgentConfig } from "@/lib/negotiation";
 interface AgentConfigPanelProps {
   role: "seller" | "buyer";
   maxDealValue: number;
-  onStart: (apiKey: string, config: AgentConfig) => void;
+  /** Called when user clicks "Start Agent" (negotiation mode) */
+  onStart?: (apiKey: string, config: AgentConfig) => void;
+  /** Called when user clicks "Save Config" (pre-config mode) */
+  onSave?: (apiKey: string, config: AgentConfig) => void;
+  /** Label for the action button */
+  mode?: "start" | "save";
+  /** Compact layout for embedding in forms */
+  compact?: boolean;
 }
 
 const SAMPLE_SELLER: AgentConfig = {
@@ -29,21 +36,35 @@ export function AgentConfigPanel({
   role,
   maxDealValue,
   onStart,
+  onSave,
+  mode = "start",
+  compact = false,
 }: AgentConfigPanelProps) {
   const [apiKey, setApiKey] = useState(
-    () => (typeof window !== "undefined" ? sessionStorage.getItem("claude-api-key") : "") ?? ""
+    () =>
+      (typeof window !== "undefined"
+        ? sessionStorage.getItem("claude-api-key")
+        : "") ?? ""
   );
   const [configText, setConfigText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const sample = role === "seller" ? SAMPLE_SELLER : SAMPLE_BUYER;
 
   const handleLoadSample = () => {
-    setConfigText(JSON.stringify(sample, null, 2));
+    const s = { ...sample };
+    if (role === "seller") {
+      s.minPrice = Math.round(maxDealValue * 0.7);
+    } else {
+      s.maxPrice = Math.round(maxDealValue * 0.9);
+    }
+    setConfigText(JSON.stringify(s, null, 2));
   };
 
-  const handleStart = () => {
+  const handleAction = () => {
     setError(null);
+    setSaved(false);
 
     if (!apiKey.trim()) {
       setError("Claude API key is required");
@@ -59,38 +80,54 @@ export function AgentConfigPanel({
     }
 
     config.role = role;
-
-    // Save API key to localStorage
     sessionStorage.setItem("claude-api-key", apiKey);
 
-    onStart(apiKey, config);
+    if (mode === "save" && onSave) {
+      onSave(apiKey, config);
+      setSaved(true);
+    } else if (onStart) {
+      onStart(apiKey, config);
+    }
   };
 
+  const buttonLabel =
+    mode === "save" ? (saved ? "Saved" : "Save Agent Config") : "Start Agent";
+
   return (
-    <div className="space-y-4">
-      <h3 className="font-semibold">AI Agent Negotiation</h3>
-      <p className="text-sm text-gray-500">
-        Configure your AI agent to negotiate on your behalf. You are the{" "}
-        <span className="font-medium text-gray-700">{role}</span>.
-      </p>
+    <div className={compact ? "space-y-3" : "space-y-4"}>
+      {!compact && (
+        <>
+          <h3 className="font-semibold">AI Agent Configuration</h3>
+          <p className="text-sm text-gray-500">
+            Configure your AI agent to negotiate on your behalf as{" "}
+            <span className="font-medium text-gray-700">{role}</span>.
+            {mode === "save" && " This will be used when negotiation begins."}
+          </p>
+        </>
+      )}
 
       <div>
         <label className="label">Claude API Key</label>
         <input
           type="password"
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            setSaved(false);
+          }}
           placeholder="sk-ant-..."
           className="input"
         />
         <p className="text-xs text-gray-400 mt-1">
-          Your key is stored locally and sent per-request only. Never stored on the server.
+          Stored in your browser only. Never sent to our server.
         </p>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="label mb-0">Agent Configuration (JSON)</label>
+          <label className="label mb-0">
+            Agent Config (JSON)
+          </label>
           <button
             onClick={handleLoadSample}
             className="text-xs text-blue-600 hover:text-blue-800"
@@ -100,23 +137,24 @@ export function AgentConfigPanel({
         </div>
         <textarea
           value={configText}
-          onChange={(e) => setConfigText(e.target.value)}
-          rows={8}
+          onChange={(e) => {
+            setConfigText(e.target.value);
+            setSaved(false);
+          }}
+          rows={compact ? 5 : 8}
           className="input font-mono text-xs"
           placeholder={JSON.stringify(sample, null, 2)}
         />
       </div>
 
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
-        onClick={handleStart}
-        disabled={!apiKey.trim() || !configText.trim()}
-        className="btn-primary w-full"
+        onClick={handleAction}
+        disabled={!apiKey.trim() || !configText.trim() || (mode === "save" && saved)}
+        className={`${mode === "save" && saved ? "btn-secondary" : "btn-primary"} w-full`}
       >
-        Start Agent
+        {buttonLabel}
       </button>
     </div>
   );

@@ -140,7 +140,9 @@ export function useNegotiation({
 
       if (latest.action === "reject") {
         setStatus("failed");
-        setError("Counterparty rejected the negotiation.");
+        setError(
+          `Counterparty rejected the negotiation. Reason: ${latest.reasoning || "no reason given"}`
+        );
         stopPolling();
         return;
       }
@@ -184,7 +186,9 @@ export function useNegotiation({
 
       if (response.action === "reject") {
         setStatus("failed");
-        setError("Your agent rejected the negotiation.");
+        setError(
+          `Your agent rejected the negotiation. Reason: ${response.reasoning || "no reason given"}`
+        );
         stopPolling();
         return;
       }
