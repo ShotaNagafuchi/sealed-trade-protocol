@@ -4,17 +4,27 @@ import { useAccount } from "wagmi";
 import { Header } from "@/components/Header";
 import { TradeCard } from "@/components/TradeCard";
 import { useTradeEvents } from "@/hooks/useTradeEvents";
+import { useOpenTrades } from "@/hooks/useOpenTrades";
 import Link from "next/link";
 
 export default function Dashboard() {
-  const { isConnected } = useAccount();
-  const { trades, isLoading } = useTradeEvents();
+  const { address, isConnected } = useAccount();
+  const { trades: myTrades, isLoading: myLoading } = useTradeEvents();
+  const { trades: openTrades, isLoading: openLoading } = useOpenTrades();
+
+  // Filter open trades to exclude user's own trades
+  const myTradeIds = new Set(myTrades.map((t) => t.tradeId));
+  const otherTrades = openTrades.filter(
+    (t) =>
+      !myTradeIds.has(t.tradeId) &&
+      t.seller.toLowerCase() !== address?.toLowerCase()
+  );
 
   return (
     <>
       <Header />
 
-      {/* Hero — always visible */}
+      {/* Hero */}
       <section className="border-b border-gray-100 bg-gray-50">
         <div className="mx-auto max-w-5xl px-6 py-12">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -38,69 +48,119 @@ export default function Dashboard() {
       </section>
 
       <main className="mx-auto w-full max-w-5xl px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">My Trades</h2>
-          {isConnected && (
-            <Link href="/trade/new" className="btn-primary">
-              + List Asset
-            </Link>
-          )}
-        </div>
+        {/* Open Trades — always visible, even without wallet */}
+        <section className="mb-10">
+          <h2 className="text-xl font-semibold mb-4">
+            Open Trades
+            {openTrades.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-gray-400">
+                {openTrades.length} listed
+              </span>
+            )}
+          </h2>
 
-        {!isConnected ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3" />
-              </svg>
+          {openLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-gray-200 p-5 animate-pulse"
+                >
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                </div>
+              ))}
             </div>
-            <p className="text-gray-700 text-lg font-medium">
-              Connect your wallet to get started
-            </p>
-            <p className="text-gray-400 text-sm mt-1.5">
-              List assets, express interest, and settle trades on Sepolia testnet
-            </p>
-          </div>
-        ) : isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-gray-200 p-5 animate-pulse"
-              >
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
+          ) : openTrades.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+              <p className="text-gray-500">No open trades yet</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Be the first to list an asset
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {openTrades.map((t) => (
+                <TradeCard
+                  key={t.tradeId}
+                  tradeId={t.tradeId}
+                  role={
+                    t.seller.toLowerCase() === address?.toLowerCase()
+                      ? "seller"
+                      : "buyer"
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* My Trades — requires wallet */}
+        {isConnected && (
+          <section className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">My Trades</h2>
+              <Link href="/trade/new" className="btn-primary">
+                + List Asset
+              </Link>
+            </div>
+
+            {myLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-gray-200 p-5 animate-pulse"
+                  >
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : trades.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </div>
-            <p className="text-gray-700 text-lg font-medium">No trades yet</p>
-            <p className="text-gray-400 text-sm mt-1.5">
-              List an asset or express interest on an existing trade
-            </p>
-            <Link
-              href="/trade/new"
-              className="btn-primary mt-5 inline-block"
-            >
-              List your first asset
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {trades.map((t) => (
-              <TradeCard key={t.tradeId} tradeId={t.tradeId} role={t.role} />
-            ))}
-          </div>
+            ) : myTrades.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+                <p className="text-gray-500">
+                  You have no active trades
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  List an asset or express interest on an open trade above
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {myTrades.map((t) => (
+                  <TradeCard
+                    key={t.tradeId}
+                    tradeId={t.tradeId}
+                    role={t.role}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
-        {/* How it works — below the fold */}
-        <section className="mt-16 border-t border-gray-100 pt-10">
+        {/* Wallet connect prompt */}
+        {!isConnected && (
+          <section className="mb-10">
+            <div className="rounded-xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3" />
+                </svg>
+              </div>
+              <p className="text-gray-700 text-lg font-medium">
+                Connect your wallet to trade
+              </p>
+              <p className="text-gray-400 text-sm mt-1.5">
+                List assets, express interest, and settle trades on Sepolia testnet
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* How it works */}
+        <section className="border-t border-gray-100 pt-10">
           <h2 className="text-lg font-semibold mb-6">How it works</h2>
           <div className="grid gap-6 sm:grid-cols-3">
             {[
