@@ -46,3 +46,4 @@ scripts/
 .pytest_cache/
 .ruff_cache/
 contracts/broadcast/
+.gstack/
