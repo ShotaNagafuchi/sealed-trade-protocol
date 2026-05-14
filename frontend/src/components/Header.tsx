@@ -1,9 +1,9 @@
 "use client";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FaucetButton } from "./FaucetButton";
+import { ConnectWallet } from "./ConnectWallet";
 
 export function Header() {
   const pathname = usePathname();
@@ -38,7 +38,7 @@ export function Header() {
         </div>
         <div className="flex items-center gap-3">
           <FaucetButton />
-          <ConnectButton showBalance={true} chainStatus="icon" />
+          <ConnectWallet />
         </div>
       </div>
     </header>

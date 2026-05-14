@@ -1,23 +1,9 @@
-import { connectorsForWallets } from "@rainbow-me/rainbowkit";
-import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
-
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: "Supported",
-      wallets: [metaMaskWallet],
-    },
-  ],
-  {
-    appName: "Sealed Trade Protocol",
-    projectId: "demo",
-  }
-);
+import { injected } from "wagmi/connectors";
 
 export const wagmiConfig = createConfig({
-  connectors,
+  connectors: [injected()],
   chains: [sepolia],
   transports: {
     [sepolia.id]: http(),
