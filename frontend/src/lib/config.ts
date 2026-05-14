@@ -10,5 +10,5 @@ export const CONTRACTS = {
 
 export const ACTIVE_CHAIN = sepolia;
 
-export const WALLETCONNECT_PROJECT_ID =
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+// Block number when contracts were deployed — used as fromBlock for event queries
+export const DEPLOY_BLOCK = 10847566n;

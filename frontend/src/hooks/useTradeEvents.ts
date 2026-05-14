@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
-import { CONTRACTS } from "@/lib/config";
+import { CONTRACTS, DEPLOY_BLOCK } from "@/lib/config";
 import SealedTradeABI from "@/lib/abi/SealedTrade.json";
 
 export interface TradeEvent {
@@ -40,7 +40,7 @@ export function useTradeEvents() {
               ],
             },
             args: { seller: address },
-            fromBlock: 0n,
+            fromBlock: DEPLOY_BLOCK,
           }),
           publicClient!.getLogs({
             address: sealedTrade,
@@ -53,7 +53,7 @@ export function useTradeEvents() {
               ],
             },
             args: { buyer: address },
-            fromBlock: 0n,
+            fromBlock: DEPLOY_BLOCK,
           }),
         ]);
 
