@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { CONTRACTS, DEPLOY_BLOCK } from "@/lib/config";
-import SealedTradeABI from "@/lib/abi/SealedTrade.json";
 
 export interface TradeEvent {
   tradeId: `0x${string}`;

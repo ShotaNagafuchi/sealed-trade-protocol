@@ -35,13 +35,19 @@ export function useNegotiation({
 
   const tradeContext = { tradeId, maxDealValue, deadline };
 
+  const stopPolling = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
   const promptClaude = useCallback(
     async (history: NegotiationMessage[]): Promise<NegotiationMessage | null> => {
       const config = configRef.current!;
       const systemPrompt = buildSystemPrompt(config, tradeContext);
       const conversationMessages = buildConversationMessages(history, config.role);
 
-      // If no history yet, add a kickoff user message
       const msgs =
         conversationMessages.length === 0
           ? [{ role: "user" as const, content: "Begin the negotiation. Make your opening proposal." }]
@@ -66,19 +72,18 @@ export function useNegotiation({
       const text = data.content?.[0]?.text;
       if (!text) throw new Error("Empty Claude response");
 
-      // Parse JSON from response (handle potential markdown wrapping)
       const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(jsonStr);
 
       return {
         id: crypto.randomUUID(),
-        round: 0, // server assigns
+        round: 0,
         role: config.role,
         action: parsed.action,
         proposedPrice: parsed.proposedPrice,
         terms: parsed.terms,
         reasoning: parsed.reasoning,
-        timestamp: 0, // server assigns
+        timestamp: 0,
       };
     },
     [tradeId, tradeContext]
@@ -108,7 +113,6 @@ export function useNegotiation({
 
       if (!newMessages || newMessages.length === 0) return;
 
-      // Update local state
       const allRes = await fetch(`/api/negotiate/${tradeId}`);
       const { messages: allMessages } = await allRes.json();
       setMessages(allMessages);
@@ -116,15 +120,12 @@ export function useNegotiation({
         ...allMessages.map((m: NegotiationMessage) => m.timestamp)
       );
 
-      // Check if the latest message is from the counterparty
       const latest = allMessages[allMessages.length - 1] as NegotiationMessage;
       const myRole = configRef.current!.role;
 
-      if (latest.role === myRole) return; // Our own message, skip
+      if (latest.role === myRole) return;
 
-      // Check for terminal states
       if (latest.action === "accept") {
-        // Counterparty accepted — find what they accepted
         const lastOurs = [...allMessages]
           .reverse()
           .find((m: NegotiationMessage) => m.role === myRole);
@@ -147,7 +148,6 @@ export function useNegotiation({
         return;
       }
 
-      // Check round limit
       if (allMessages.length >= MAX_ROUNDS * 2) {
         setStatus("timeout");
         setError("Maximum rounds reached without agreement.");
@@ -155,12 +155,10 @@ export function useNegotiation({
         return;
       }
 
-      // Generate our response
       setIsThinking(true);
       let response = await promptClaude(allMessages);
 
       if (!response) {
-        // Retry once
         response = await promptClaude(allMessages);
         if (!response) {
           setStatus("failed");
@@ -172,7 +170,6 @@ export function useNegotiation({
 
       await postMessage(response);
 
-      // If we accepted, we're done
       if (response.action === "accept") {
         setAgreement({
           finalPrice: latest.proposedPrice,
@@ -193,7 +190,6 @@ export function useNegotiation({
         return;
       }
 
-      // Refresh messages
       const refreshRes = await fetch(`/api/negotiate/${tradeId}`);
       const { messages: refreshed } = await refreshRes.json();
       setMessages(refreshed);
@@ -206,14 +202,7 @@ export function useNegotiation({
       setIsThinking(false);
       processingRef.current = false;
     }
-  }, [tradeId, promptClaude, postMessage]);
-
-  const stopPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
+  }, [tradeId, promptClaude, postMessage, stopPolling]);
 
   const startNegotiation = useCallback(
     async (apiKey: string, config: AgentConfig) => {
@@ -224,7 +213,6 @@ export function useNegotiation({
       setMessages([]);
       setAgreement(null);
 
-      // Seller goes first
       if (config.role === "seller") {
         try {
           setIsThinking(true);
@@ -247,7 +235,6 @@ export function useNegotiation({
         }
       }
 
-      // Start polling
       intervalRef.current = setInterval(pollAndRespond, POLL_INTERVAL_MS);
     },
     [promptClaude, postMessage, pollAndRespond, tradeId]
@@ -258,7 +245,6 @@ export function useNegotiation({
     setStatus("idle");
   }, [stopPolling]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => stopPolling();
   }, [stopPolling]);

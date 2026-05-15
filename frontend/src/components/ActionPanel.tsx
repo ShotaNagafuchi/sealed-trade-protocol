@@ -49,14 +49,37 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
   const isParty = isSeller || isBuyer;
   const busy = isPending || isConfirming;
 
-  // Refresh parent after confirmation
-  if (isSuccess) {
-    setTimeout(onSuccess, 1000);
-  }
-
   const sealedTradeAddr = CONTRACTS.sealedTrade as `0x${string}`;
   const bondVaultAddr = CONTRACTS.bondVault as `0x${string}`;
   const usdcAddr = CONTRACTS.mockUsdc as `0x${string}`;
+
+  // --- Negotiating: auto-start agent if pre-configured ---
+  const myRole = isSeller ? "seller" as const : "buyer" as const;
+  const autoStartKey = `agent-autostarted-${trade.tradeId}-${myRole}`;
+
+  useEffect(() => {
+    if (
+      trade.state === TradeState.Negotiating &&
+      isParty &&
+      negotiation.status === "idle"
+    ) {
+      if (typeof window !== "undefined" && sessionStorage.getItem(autoStartKey)) return;
+
+      const setup = loadAgentSetup(trade.tradeId, myRole);
+      if (setup) {
+        sessionStorage.setItem(autoStartKey, "1");
+        negotiation.startNegotiation(setup.apiKey, setup.config);
+      }
+    }
+  }, [trade.state, isParty, negotiation.status, trade.tradeId, myRole, autoStartKey]);
+
+  // Refresh parent after confirmation
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(onSuccess, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, onSuccess]);
 
   const approve = (spender: `0x${string}`, amount: bigint) => {
     writeContract({
@@ -154,27 +177,6 @@ export function ActionPanel({ trade, onSuccess }: ActionPanelProps) {
       </div>
     );
   }
-
-  // --- Negotiating: auto-start agent if pre-configured ---
-  const myRole = isSeller ? "seller" as const : "buyer" as const;
-  const autoStartKey = `agent-autostarted-${trade.tradeId}-${myRole}`;
-
-  useEffect(() => {
-    if (
-      trade.state === TradeState.Negotiating &&
-      isParty &&
-      negotiation.status === "idle"
-    ) {
-      // Check persistent flag to prevent duplicate auto-starts across refreshes
-      if (typeof window !== "undefined" && sessionStorage.getItem(autoStartKey)) return;
-
-      const setup = loadAgentSetup(trade.tradeId, myRole);
-      if (setup) {
-        sessionStorage.setItem(autoStartKey, "1");
-        negotiation.startNegotiation(setup.apiKey, setup.config);
-      }
-    }
-  }, [trade.state, isParty, negotiation.status, trade.tradeId, myRole, autoStartKey]);
 
   if (trade.state === TradeState.Negotiating && isParty) {
     const storageKey = `sig-${trade.tradeId}`;
