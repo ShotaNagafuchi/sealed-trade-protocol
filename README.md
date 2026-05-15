@@ -87,7 +87,7 @@ contracts/src/
   Treasury.sol          Fee vault + insurance pool
   MockUSDC.sol          Test USDC with open mint (testnet only)
 
-frontend/               Next.js demo UI (wagmi + RainbowKit)
+frontend/               Next.js demo UI (wagmi + Sepolia testnet)
 
 simulation/
   sealed_economics.py   Bond and fee calculations
@@ -134,13 +134,13 @@ Security hardening: CEI pattern, ReentrancyGuard, EIP-712 with malleability prot
 
 ## Documentation
 
-- [Paper](PAPER.md) — Full protocol paper ([日本語版](PAPER_ja.md))
+- [Paper](PAPER.md) — Full protocol paper ([PDF](paper/sealed-trade-protocol.pdf)) ([日本語版](PAPER_ja.md) / [PDF](paper/sealed-trade-protocol_ja.pdf))
 - [Contributing](CONTRIBUTING.md) — Development setup and guidelines
 
 ## Status
 
 - [x] Smart contracts (settlement layer) + 32 automated tests
-- [x] Frontend demo UI (Next.js + wagmi + RainbowKit)
+- [x] Frontend demo UI (Next.js + wagmi)
 - [x] Testnet deployment script (Sepolia)
 - [ ] **Agent runtime — the TEE-confined negotiation engine (next milestone)**
 - [ ] Professional security audit
