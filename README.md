@@ -98,7 +98,7 @@ simulation/
 
 > Requires a browser wallet (MetaMask) connected to **Sepolia**.
 
-1. Visit the demo app (URL TBD after deployment)
+1. Visit the demo: **https://frontend-five-xi-i81goehc6k.vercel.app/**
 2. Connect your wallet and switch to Sepolia
 3. Click **"Get 10K USDC"** to mint test tokens
 4. **Seller**: List an asset with a max deal value and deadline
